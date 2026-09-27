@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { api, getActiveCompanyId } from '../../lib/api';
+import { Header } from '../../components/Header';
+import { Sidebar } from '../../components/Sidebar';
 import {
   Package,
   Warehouse,
@@ -57,8 +59,12 @@ export default function InventoryPage() {
   ).length;
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Top Title Bar */}
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header />
+        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+          {/* Top Title Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-100">
@@ -341,6 +347,8 @@ export default function InventoryPage() {
           </div>
         </div>
       )}
+        </main>
+      </div>
     </div>
   );
 }

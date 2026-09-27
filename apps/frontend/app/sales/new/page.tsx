@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getActiveCompanyId, getActiveFinancialYearId } from '../../../lib/api';
+import { Header } from '../../../components/Header';
+import { Sidebar } from '../../../components/Sidebar';
 import {
   Plus,
   Trash2,
@@ -182,8 +184,13 @@ export default function NewSalesInvoicePage() {
   };
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
-      {/* Top Header */}
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header />
+        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Top Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <button
@@ -520,6 +527,9 @@ export default function NewSalesInvoicePage() {
             </span>
           </div>
         </div>
+      </div>
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Header } from '../../components/Header';
+import { Sidebar } from '../../components/Sidebar';
 import {
   Landmark,
   CheckCircle2,
@@ -26,8 +28,12 @@ export default function BankingPage() {
   };
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header />
+        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+          {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-100">
@@ -214,6 +220,8 @@ export default function BankingPage() {
             </tbody>
           </table>
         </div>
+      </div>
+        </main>
       </div>
     </div>
   );
