@@ -10,9 +10,10 @@ async function bootstrap() {
   // Set Global Prefix
   app.setGlobalPrefix('api/v1');
 
-  // Enable CORS
+  // Enable Permissive CORS for local & production web frontend
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 
@@ -21,7 +22,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
     }),
   );
 

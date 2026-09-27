@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_URL = rawApiUrl.endsWith('/api/v1')
+  ? rawApiUrl
+  : `${rawApiUrl.replace(/\/$/, '')}/api/v1`;
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -31,7 +34,7 @@ api.interceptors.response.use(
           const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
           const newAccessToken = res.data.accessToken;
           const newRefreshToken = res.data.refreshToken;
-          
+
           localStorage.setItem('finflow_access_token', newAccessToken);
           localStorage.setItem('finflow_refresh_token', newRefreshToken);
 
@@ -42,10 +45,9 @@ api.interceptors.response.use(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('finflow_access_token');
           localStorage.removeItem('finflow_refresh_token');
-          window.location.href = '/login';
         }
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
