@@ -17,12 +17,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('finflow_access_token');
-      if (token && token.length > 10) {
-        router.replace('/');
-      }
+      localStorage.removeItem('finflow_access_token');
+      localStorage.removeItem('finflow_refresh_token');
+      sessionStorage.removeItem('finflow_session_active');
     }
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

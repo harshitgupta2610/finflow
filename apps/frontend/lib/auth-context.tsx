@@ -42,12 +42,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    async function loadUser() {
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem('finflow_session_active');
+      localStorage.removeItem('finflow_access_token');
+      localStorage.removeItem('finflow_refresh_token');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    async function initAuth() {
+      if (typeof window === 'undefined') return;
+
+      const isReload =
+        (window.performance && (window.performance as any).navigation?.type === 1) ||
+        (window.performance &&
+          window.performance.getEntriesByType &&
+          (window.performance.getEntriesByType('navigation')[0] as any)?.type === 'reload');
+
+      const isSessionActive = sessionStorage.getItem('finflow_session_active');
+
+      if (isReload || !isSessionActive) {
+        localStorage.removeItem('finflow_access_token');
+        localStorage.removeItem('finflow_refresh_token');
+        sessionStorage.removeItem('finflow_session_active');
+        setUser(null);
+        setLoading(false);
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+          router.replace('/login');
+        }
+        return;
+      }
+
       const token = localStorage.getItem('finflow_access_token');
       if (!token) {
         setLoading(false);
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+          router.replace('/login');
+        }
         return;
       }
+
       try {
         const res = await api.get('/auth/me');
         setUser(res.data.user);
@@ -64,14 +97,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         localStorage.removeItem('finflow_access_token');
         localStorage.removeItem('finflow_refresh_token');
+        sessionStorage.removeItem('finflow_session_active');
+        setUser(null);
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+          router.replace('/login');
+        }
       } finally {
         setLoading(false);
       }
     }
-    loadUser();
-  }, []);
+
+    initAuth();
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [router]);
 
   const login = (tokens: { accessToken: string; refreshToken: string }, userData: User) => {
+    sessionStorage.setItem('finflow_session_active', 'true');
     localStorage.setItem('finflow_access_token', tokens.accessToken);
     localStorage.setItem('finflow_refresh_token', tokens.refreshToken);
     setUser(userData);
@@ -89,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    sessionStorage.removeItem('finflow_session_active');
     localStorage.removeItem('finflow_access_token');
     localStorage.removeItem('finflow_refresh_token');
     localStorage.removeItem('finflow_company_id');

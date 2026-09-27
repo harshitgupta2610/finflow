@@ -21,8 +21,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const isSessionActive = sessionStorage.getItem('finflow_session_active');
       const token = localStorage.getItem('finflow_access_token');
-      if (!token) {
+      if (!isSessionActive || !token) {
         router.replace('/login');
         return;
       }
@@ -32,10 +33,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !user && typeof window !== 'undefined') {
-      const token = localStorage.getItem('finflow_access_token');
-      if (!token) {
-        router.replace('/login');
-      }
+      router.replace('/login');
     }
   }, [loading, user, router]);
 
