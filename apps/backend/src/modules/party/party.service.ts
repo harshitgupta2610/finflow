@@ -15,7 +15,7 @@ export class PartyService {
     return this.prisma.party.findMany({
       where: {
         companyId,
-        ...(type ? { partyType: type } : {}),
+        ...(type ? { partyType: { in: [type, PartyType.BOTH] } } : {}),
         ...(search
           ? {
               OR: [

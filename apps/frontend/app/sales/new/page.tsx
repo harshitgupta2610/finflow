@@ -16,6 +16,9 @@ import {
   Calendar,
   CreditCard,
   Printer,
+  X,
+  Save,
+  RefreshCw,
 } from 'lucide-react';
 
 interface InvoiceLineInput {
@@ -33,6 +36,23 @@ export default function NewSalesInvoicePage() {
 
   const [parties, setParties] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [companyState, setCompanyState] = useState('Maharashtra');
+
+  // Quick Add Customer modal state
+  const [showAddPartyModal, setShowAddPartyModal] = useState(false);
+  const [creatingParty, setCreatingParty] = useState(false);
+  const [newPartyForm, setNewPartyForm] = useState({
+    name: '',
+    gstin: '',
+    pan: '',
+    phone: '',
+    email: '',
+    state: 'Maharashtra',
+    billingAddress: '',
+    creditDays: 30,
+    creditLimit: 500000,
+  });
 
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-6)}`);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -66,17 +86,96 @@ export default function NewSalesInvoicePage() {
 
   const fetchMasterData = async () => {
     try {
+      setDataLoading(true);
       const companyId = await getActiveCompanyId();
 
-      const [partiesRes, itemsRes] = await Promise.all([
-        api.get('/parties', { params: { companyId, type: 'CUSTOMER' } }),
-        api.get('/items', { params: { companyId } }),
+      const [companyRes, partiesRes, itemsRes] = await Promise.all([
+        api.get(`/companies/${companyId}`).catch(() => ({ data: null })),
+        api.get('/parties', { params: { companyId, type: 'CUSTOMER' } }).catch(() => ({ data: [] })),
+        api.get('/items', { params: { companyId } }).catch(() => ({ data: [] })),
       ]);
 
-      setParties(partiesRes.data);
-      setItems(itemsRes.data);
+      if (companyRes?.data?.state) {
+        setCompanyState(companyRes.data.state);
+        setPlaceOfSupply(companyRes.data.state);
+      }
+
+      let partyList = partiesRes.data || [];
+      if (partyList.length === 0) {
+        // Fallback: fetch all parties so any registered customer/vendor can be chosen
+        const allPartiesRes = await api.get('/parties', { params: { companyId } }).catch(() => ({ data: [] }));
+        partyList = allPartiesRes.data || [];
+      }
+
+      setParties(partyList);
+      setItems(itemsRes.data || []);
     } catch (err) {
       console.error('Failed to fetch master data', err);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleCustomerChange = (partyId: string) => {
+    setCustomerId(partyId);
+    const selectedParty = parties.find((p) => p.id === partyId);
+    if (selectedParty) {
+      if (selectedParty.state) {
+        setPlaceOfSupply(selectedParty.state);
+      }
+      if (selectedParty.creditDays) {
+        const d = new Date(invoiceDate || new Date().toISOString().split('T')[0]);
+        d.setDate(d.getDate() + Number(selectedParty.creditDays));
+        setDueDate(d.toISOString().split('T')[0]);
+      }
+    }
+  };
+
+  const handleQuickAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPartyForm.name.trim()) return;
+
+    try {
+      setCreatingParty(true);
+      const companyId = await getActiveCompanyId();
+
+      const res = await api.post('/parties', {
+        companyId,
+        name: newPartyForm.name.trim(),
+        partyType: 'CUSTOMER',
+        gstin: newPartyForm.gstin.trim() || undefined,
+        pan: newPartyForm.pan.trim() || undefined,
+        phone: newPartyForm.phone.trim() || undefined,
+        email: newPartyForm.email.trim() || undefined,
+        state: newPartyForm.state || companyState,
+        billingAddress: newPartyForm.billingAddress.trim() || undefined,
+        creditLimit: Number(newPartyForm.creditLimit) || 0,
+        creditDays: Number(newPartyForm.creditDays) || 30,
+      });
+
+      setShowAddPartyModal(false);
+      setNewPartyForm({
+        name: '',
+        gstin: '',
+        pan: '',
+        phone: '',
+        email: '',
+        state: companyState,
+        billingAddress: '',
+        creditDays: 30,
+        creditLimit: 500000,
+      });
+
+      await fetchMasterData();
+      if (res.data?.id) {
+        setCustomerId(res.data.id);
+        if (res.data.state) setPlaceOfSupply(res.data.state);
+      }
+    } catch (err: any) {
+      console.error('Failed to quick-add customer', err);
+      alert(err.response?.data?.message || 'Failed to create customer');
+    } finally {
+      setCreatingParty(false);
     }
   };
 
@@ -107,7 +206,7 @@ export default function NewSalesInvoicePage() {
   };
 
   // Tax calculations logic
-  const isIntraState = placeOfSupply.trim().toLowerCase() === 'maharashtra'; // Default company state
+  const isIntraState = placeOfSupply.trim().toLowerCase() === (companyState || 'Maharashtra').trim().toLowerCase();
 
   let subtotal = 0;
   let cgstTotal = 0;
@@ -235,18 +334,31 @@ export default function NewSalesInvoicePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              Customer / Party <span className="text-rose-400">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-slate-400">
+                Customer / Party <span className="text-rose-400">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAddPartyModal(true)}
+                className="text-[11px] text-brand-400 hover:text-brand-300 font-medium flex items-center space-x-1 transition-colors"
+              >
+                <Plus className="h-3 w-3" />
+                <span>+ Add Customer</span>
+              </button>
+            </div>
             <select
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+              onChange={(e) => handleCustomerChange(e.target.value)}
+              disabled={dataLoading}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500 disabled:opacity-50"
             >
-              <option value="">Select Customer...</option>
+              <option value="">
+                {dataLoading ? 'Loading customers from API...' : parties.length === 0 ? 'No customers found — Click + Add Customer' : 'Select Customer...'}
+              </option>
               {parties.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} {p.gstin ? `(${p.gstin})` : ''}
+                  {p.name} {p.gstin ? `(${p.gstin})` : ''} - {p.state || 'Maharashtra'}
                 </option>
               ))}
             </select>
@@ -374,10 +486,10 @@ export default function NewSalesInvoicePage() {
                         onChange={(e) => handleItemSelect(idx, e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
                       >
-                        <option value="">Select Item Master...</option>
+                        <option value="">Select Item / SKU Master...</option>
                         {items.map((it) => (
                           <option key={it.id} value={it.id}>
-                            {it.name} ({it.code})
+                            {it.name} {it.sku ? `(SKU: ${it.sku})` : ''} - ₹{Number(it.sellingPrice || 0).toLocaleString('en-IN')}
                           </option>
                         ))}
                       </select>
@@ -528,6 +640,155 @@ export default function NewSalesInvoicePage() {
           </div>
         </div>
       </div>
+
+      {/* Quick Add Customer Modal */}
+      {showAddPartyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-5 border-b border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="h-8 w-8 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center">
+                  <Building className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100">Add New Customer</h3>
+                  <p className="text-[11px] text-slate-400">Quickly create a customer ledger account with GST details.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddPartyModal(false)}
+                className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickAddCustomer} className="p-5 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Customer Legal Name <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Acme Technologies Pvt Ltd"
+                  value={newPartyForm.name}
+                  onChange={(e) => setNewPartyForm({ ...newPartyForm, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">GSTIN (15 Digits)</label>
+                  <input
+                    type="text"
+                    maxLength={15}
+                    placeholder="27AABCU9603R1ZM"
+                    value={newPartyForm.gstin}
+                    onChange={(e) => setNewPartyForm({ ...newPartyForm, gstin: e.target.value.toUpperCase() })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono uppercase focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">State / Jurisdiction</label>
+                  <select
+                    value={newPartyForm.state}
+                    onChange={(e) => setNewPartyForm({ ...newPartyForm, state: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+                  >
+                    <option value="Maharashtra">Maharashtra (27)</option>
+                    <option value="Karnataka">Karnataka (29)</option>
+                    <option value="Gujarat">Gujarat (24)</option>
+                    <option value="Delhi">Delhi (07)</option>
+                    <option value="Tamil Nadu">Tamil Nadu (33)</option>
+                    <option value="Uttar Pradesh">Uttar Pradesh (09)</option>
+                    <option value="Telangana">Telangana (36)</option>
+                    <option value="West Bengal">West Bengal (19)</option>
+                    <option value="Haryana">Haryana (06)</option>
+                    <option value="Rajasthan">Rajasthan (08)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    value={newPartyForm.phone}
+                    onChange={(e) => setNewPartyForm({ ...newPartyForm, phone: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="billing@company.com"
+                    value={newPartyForm.email}
+                    onChange={(e) => setNewPartyForm({ ...newPartyForm, email: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Billing / Shipping Address</label>
+                <textarea
+                  rows={2}
+                  placeholder="Street, City, Pincode"
+                  value={newPartyForm.billingAddress}
+                  onChange={(e) => setNewPartyForm({ ...newPartyForm, billingAddress: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Credit Limit (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPartyForm.creditLimit}
+                    onChange={(e) => setNewPartyForm({ ...newPartyForm, creditLimit: Number(e.target.value) })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Credit Period (Days)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPartyForm.creditDays}
+                    onChange={(e) => setNewPartyForm({ ...newPartyForm, creditDays: Number(e.target.value) })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPartyModal(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingParty || !newPartyForm.name.trim()}
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium shadow-lg shadow-brand-600/30 transition-all disabled:opacity-50"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  <span>{creatingParty ? 'Saving...' : 'Save & Select Customer'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
           </div>
         </main>
       </div>

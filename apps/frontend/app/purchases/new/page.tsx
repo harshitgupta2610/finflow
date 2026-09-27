@@ -62,12 +62,18 @@ export default function NewPurchaseInvoicePage() {
       const companyId = await getActiveCompanyId();
 
       const [partiesRes, itemsRes] = await Promise.all([
-        api.get('/parties', { params: { companyId, type: 'SUPPLIER' } }),
-        api.get('/items', { params: { companyId } }),
+        api.get('/parties', { params: { companyId, type: 'SUPPLIER' } }).catch(() => ({ data: [] })),
+        api.get('/items', { params: { companyId } }).catch(() => ({ data: [] })),
       ]);
 
-      setParties(partiesRes.data);
-      setItems(itemsRes.data);
+      let partyList = partiesRes.data || [];
+      if (partyList.length === 0) {
+        const allPartiesRes = await api.get('/parties', { params: { companyId } }).catch(() => ({ data: [] }));
+        partyList = allPartiesRes.data || [];
+      }
+
+      setParties(partyList);
+      setItems(itemsRes.data || []);
     } catch (err) {
       console.error('Failed to fetch master data', err);
     }
@@ -325,10 +331,10 @@ export default function NewPurchaseInvoicePage() {
                         onChange={(e) => handleItemSelect(idx, e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
                       >
-                        <option value="">Select Item Master...</option>
+                        <option value="">Select Item / SKU Master...</option>
                         {items.map((it) => (
                           <option key={it.id} value={it.id}>
-                            {it.name} ({it.code})
+                            {it.name} {it.sku ? `(SKU: ${it.sku})` : ''} - ₹{Number(it.purchasePrice || 0).toLocaleString('en-IN')}
                           </option>
                         ))}
                       </select>
