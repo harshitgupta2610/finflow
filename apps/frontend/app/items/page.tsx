@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
 import {
@@ -50,8 +50,7 @@ export default function ItemMasterPage() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get('/items', {
         params: { companyId },
@@ -69,11 +68,7 @@ export default function ItemMasterPage() {
     try {
       setSaving(true);
       setError(null);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) {
-        setError('No active company selected in context');
-        return;
-      }
+      const companyId = await getActiveCompanyId();
 
       await api.post('/items', {
         companyId,
@@ -116,7 +111,7 @@ export default function ItemMasterPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete SKU "${name}"?`)) return;
     try {
-      const companyId = localStorage.getItem('finflow_company_id');
+      const companyId = await getActiveCompanyId();
       await api.delete(`/items/${id}?companyId=${companyId}`);
       await fetchItems();
     } catch (err: any) {

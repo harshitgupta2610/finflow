@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
-import { api } from '../lib/api';
+import { api, getActiveCompanyId } from '../lib/api';
 import {
   Building2,
   Calendar,
@@ -60,8 +60,7 @@ export function Header() {
   const loadSearchData = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const [pRes, iRes] = await Promise.all([
         api.get('/parties', { params: { companyId } }).catch(() => ({ data: [] })),

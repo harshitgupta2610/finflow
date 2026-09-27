@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '../../../lib/api';
+import { api, getActiveCompanyId, getActiveFinancialYearId } from '../../../lib/api';
 import {
   Plus,
   Trash2,
@@ -64,8 +64,7 @@ export default function NewSalesInvoicePage() {
 
   const fetchMasterData = async () => {
     try {
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const [partiesRes, itemsRes] = await Promise.all([
         api.get('/parties', { params: { companyId, type: 'CUSTOMER' } }),
@@ -155,13 +154,8 @@ export default function NewSalesInvoicePage() {
       setLoading(true);
       setError(null);
 
-      const companyId = localStorage.getItem('finflow_company_id');
-      const financialYearId = localStorage.getItem('finflow_financial_year_id');
-
-      if (!companyId || !financialYearId) {
-        setError('Missing company or financial year selection in active context');
-        return;
-      }
+      const companyId = await getActiveCompanyId();
+      const financialYearId = await getActiveFinancialYearId(companyId);
 
       const res = await api.post('/sales/invoices', {
         companyId,

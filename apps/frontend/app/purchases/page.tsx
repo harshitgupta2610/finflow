@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import {
   Plus,
   Search,
@@ -26,8 +26,7 @@ export default function PurchasesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get('/purchases/invoices', {
         params: { companyId },

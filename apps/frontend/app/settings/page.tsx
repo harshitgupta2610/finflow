@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import {
   Building2,
   Calendar,
@@ -34,8 +34,7 @@ export default function SettingsPage() {
   const fetchCompany = async () => {
     try {
       setInitialLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get(`/companies/${companyId}`);
       if (res.data) {
@@ -56,11 +55,7 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       setError(null);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) {
-        setError('No active company selected');
-        return;
-      }
+      const companyId = await getActiveCompanyId();
 
       await api.put(`/companies/${companyId}`, {
         legalName: companyName,

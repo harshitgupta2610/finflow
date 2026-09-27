@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import {
   Package,
   Warehouse,
@@ -29,8 +29,7 @@ export default function InventoryPage() {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get('/items', { params: { companyId } });
       setItems(res.data);

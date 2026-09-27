@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '../lib/api';
+import { api, getActiveCompanyId } from '../lib/api';
 import { ArrowUpRight, ArrowDownRight, CheckCircle2, RefreshCw } from 'lucide-react';
 
 export function RecentTransactionsWidget() {
@@ -16,8 +16,7 @@ export function RecentTransactionsWidget() {
   const fetchRecentVouchers = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get('/vouchers', {
         params: { companyId, limit: 5 },

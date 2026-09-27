@@ -8,7 +8,8 @@ describe('AccountingService - Double Entry Validation', () => {
     // Mock Prisma & Audit Services
     const mockPrisma: any = {};
     const mockAudit: any = {};
-    service = new AccountingService(mockPrisma, mockAudit);
+    const mockAccount: any = {};
+    service = new AccountingService(mockPrisma, mockAudit, mockAccount);
   });
 
   it('should PASS when SUM(debit) === SUM(credit)', () => {

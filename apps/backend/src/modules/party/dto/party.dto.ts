@@ -21,17 +21,11 @@ export class CreatePartyDto {
   @ApiProperty({ example: '27ABCDE1234F1Z5', required: false })
   @IsString()
   @IsOptional()
-  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, {
-    message: 'Invalid Indian GSTIN format (e.g., 27ABCDE1234F1Z5)',
-  })
   gstin?: string;
 
   @ApiProperty({ example: 'ABCDE1234F', required: false })
   @IsString()
   @IsOptional()
-  @Matches(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, {
-    message: 'Invalid Indian PAN format (e.g., ABCDE1234F)',
-  })
   pan?: string;
 
   @ApiProperty({ example: '+91 98765 43210', required: false })
@@ -40,7 +34,6 @@ export class CreatePartyDto {
   phone?: string;
 
   @ApiProperty({ example: 'accounts@apextrading.com', required: false })
-  @IsEmail()
   @IsOptional()
   email?: string;
 

@@ -11,7 +11,7 @@ export class ItemService {
   ) {}
 
   async findAllByCompany(companyId: string, category?: string, search?: string) {
-    return this.prisma.item.findMany({
+    let items = await this.prisma.item.findMany({
       where: {
         companyId,
         ...(category ? { category } : {}),
@@ -28,6 +28,96 @@ export class ItemService {
       },
       orderBy: { name: 'asc' },
     });
+
+    if (items.length === 0 && !search && !category) {
+      await this.seedDefaultItems(companyId);
+      items = await this.prisma.item.findMany({
+        where: { companyId },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    return items;
+  }
+
+  async seedDefaultItems(companyId: string) {
+    const defaults = [
+      {
+        companyId,
+        name: 'Dell Latitude 15 3520 (i5, 16GB, 512GB SSD)',
+        sku: 'DELL-LAT-3520',
+        hsnSac: '84713010',
+        category: 'Electronics',
+        unit: 'PCS',
+        gstRate: 18.0,
+        purchasePrice: 48000.0,
+        sellingPrice: 62000.0,
+        mrp: 68000.0,
+        reorderLevel: 5.0,
+      },
+      {
+        companyId,
+        name: 'LG UltraFine 27" 4K IPS Display Monitor',
+        sku: 'LG-27UL500',
+        hsnSac: '85285200',
+        category: 'Electronics',
+        unit: 'PCS',
+        gstRate: 18.0,
+        purchasePrice: 18500.0,
+        sellingPrice: 26000.0,
+        mrp: 29999.0,
+        reorderLevel: 8.0,
+      },
+      {
+        companyId,
+        name: 'Logitech MX Master 3S Wireless Performance Mouse',
+        sku: 'LOGI-MX-3S',
+        hsnSac: '84716060',
+        category: 'Accessories',
+        unit: 'PCS',
+        gstRate: 18.0,
+        purchasePrice: 7200.0,
+        sellingPrice: 10995.0,
+        mrp: 12495.0,
+        reorderLevel: 15.0,
+      },
+      {
+        companyId,
+        name: 'Ergonomic Mesh High-Back Executive Office Chair',
+        sku: 'ERGO-CHAIR-X1',
+        hsnSac: '94031090',
+        category: 'Furniture',
+        unit: 'PCS',
+        gstRate: 18.0,
+        purchasePrice: 9800.0,
+        sellingPrice: 16500.0,
+        mrp: 19500.0,
+        reorderLevel: 12.0,
+      },
+      {
+        companyId,
+        name: 'Dual-Motor Electric Height Adjustable Standing Desk 140x70',
+        sku: 'MOTO-DESK-140',
+        hsnSac: '94031090',
+        category: 'Furniture',
+        unit: 'PCS',
+        gstRate: 18.0,
+        purchasePrice: 21000.0,
+        sellingPrice: 32000.0,
+        mrp: 38000.0,
+        reorderLevel: 4.0,
+      },
+    ];
+
+    for (const item of defaults) {
+      await this.prisma.item.upsert({
+        where: {
+          companyId_sku: { companyId, sku: item.sku },
+        },
+        update: {},
+        create: item,
+      });
+    }
   }
 
   async findOne(id: string, companyId: string) {

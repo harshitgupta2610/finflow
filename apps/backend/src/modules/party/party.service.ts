@@ -55,17 +55,21 @@ export class PartyService {
   }
 
   async create(userId: string, dto: CreatePartyDto) {
+    const rawDto: any = dto;
+    const resolvedType = dto.partyType || rawDto.type || PartyType.CUSTOMER;
+    const resolvedAddress = dto.billingAddress || rawDto.address;
+
     const party = await this.prisma.party.create({
       data: {
         companyId: dto.companyId,
         name: dto.name,
-        partyType: dto.partyType,
+        partyType: resolvedType,
         gstin: dto.gstin,
         pan: dto.pan,
         phone: dto.phone,
         email: dto.email,
-        billingAddress: dto.billingAddress,
-        shippingAddress: dto.shippingAddress,
+        billingAddress: resolvedAddress,
+        shippingAddress: dto.shippingAddress || resolvedAddress,
         state: dto.state,
         pincode: dto.pincode,
         creditLimit: dto.creditLimit,

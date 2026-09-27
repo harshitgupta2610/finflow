@@ -82,38 +82,140 @@ export class AccountService {
     const cashGroup = await this.prisma.accountGroup.findUnique({
       where: { companyId_code: { companyId, code: 'CASH' } },
     });
+    const bankGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'BANK' } },
+    });
     const salesGroup = await this.prisma.accountGroup.findUnique({
       where: { companyId_code: { companyId, code: 'SALES_REV' } },
     });
+    const purchaseGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'PURCHASE_EXP' } },
+    });
+    const debtorsGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'RECEIVABLES' } },
+    });
+    const creditorsGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'PAYABLES' } },
+    });
+    const equityGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'EQUITY' } },
+    });
+    const gstOutputGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'GST_OUTPUT' } },
+    });
+    const gstInputGroup = await this.prisma.accountGroup.findUnique({
+      where: { companyId_code: { companyId, code: 'GST_INPUT' } },
+    });
 
-    if (cashGroup) {
-      await this.prisma.account.upsert({
-        where: { companyId_code: { companyId, code: 'CASH_PRIMARY' } },
-        update: {},
-        create: {
-          companyId,
-          accountGroupId: cashGroup.id,
-          name: 'Main Cash Account',
-          code: 'CASH_PRIMARY',
-          openingBalance: 10000.00,
-          openingBalanceType: BalanceType.DEBIT,
-        },
-      });
-    }
+    const defaultLedgers = [
+      {
+        groupId: cashGroup?.id,
+        name: 'Main Cash-in-Hand',
+        code: 'CASH_PRIMARY',
+        openingBalance: 215400.00,
+        type: BalanceType.DEBIT,
+      },
+      {
+        groupId: bankGroup?.id,
+        name: 'HDFC Bank Operating Account',
+        code: 'BANK_HDFC',
+        openingBalance: 1845900.00,
+        type: BalanceType.DEBIT,
+      },
+      {
+        groupId: debtorsGroup?.id,
+        name: 'Sundry Debtors (General)',
+        code: 'DEBTORS_GEN',
+        openingBalance: 645200.00,
+        type: BalanceType.DEBIT,
+      },
+      {
+        groupId: creditorsGroup?.id,
+        name: 'Sundry Creditors (General)',
+        code: 'CREDITORS_GEN',
+        openingBalance: 380000.00,
+        type: BalanceType.CREDIT,
+      },
+      {
+        groupId: equityGroup?.id,
+        name: "Owner's Capital & Equity",
+        code: 'CAPITAL_GEN',
+        openingBalance: 2326500.00,
+        type: BalanceType.CREDIT,
+      },
+      {
+        groupId: salesGroup?.id,
+        name: 'Sales Revenue (Domestic GST)',
+        code: 'SALES_GEN',
+        openingBalance: 0.00,
+        type: BalanceType.CREDIT,
+      },
+      {
+        groupId: purchaseGroup?.id,
+        name: 'Purchase Account (Raw Materials/Goods)',
+        code: 'PURCHASE_GEN',
+        openingBalance: 0.00,
+        type: BalanceType.DEBIT,
+      },
+      {
+        groupId: gstOutputGroup?.id,
+        name: 'Output CGST Payable',
+        code: 'GST_CGST_OUT',
+        openingBalance: 0.00,
+        type: BalanceType.CREDIT,
+      },
+      {
+        groupId: gstOutputGroup?.id,
+        name: 'Output SGST Payable',
+        code: 'GST_SGST_OUT',
+        openingBalance: 0.00,
+        type: BalanceType.CREDIT,
+      },
+      {
+        groupId: gstOutputGroup?.id,
+        name: 'Output IGST Payable',
+        code: 'GST_IGST_OUT',
+        openingBalance: 0.00,
+        type: BalanceType.CREDIT,
+      },
+      {
+        groupId: gstInputGroup?.id,
+        name: 'Input CGST Tax Credit',
+        code: 'GST_CGST_IN',
+        openingBalance: 0.00,
+        type: BalanceType.DEBIT,
+      },
+      {
+        groupId: gstInputGroup?.id,
+        name: 'Input SGST Tax Credit',
+        code: 'GST_SGST_IN',
+        openingBalance: 0.00,
+        type: BalanceType.DEBIT,
+      },
+      {
+        groupId: gstInputGroup?.id,
+        name: 'Input IGST Tax Credit',
+        code: 'GST_IGST_IN',
+        openingBalance: 0.00,
+        type: BalanceType.DEBIT,
+      },
+    ];
 
-    if (salesGroup) {
-      await this.prisma.account.upsert({
-        where: { companyId_code: { companyId, code: 'SALES_GEN' } },
-        update: {},
-        create: {
-          companyId,
-          accountGroupId: salesGroup.id,
-          name: 'Sales Account (Domestic)',
-          code: 'SALES_GEN',
-          openingBalance: 0.00,
-          openingBalanceType: BalanceType.CREDIT,
-        },
-      });
+    for (const l of defaultLedgers) {
+      if (l.groupId) {
+        await this.prisma.account.upsert({
+          where: { companyId_code: { companyId, code: l.code } },
+          update: {},
+          create: {
+            companyId,
+            accountGroupId: l.groupId,
+            name: l.name,
+            code: l.code,
+            openingBalance: l.openingBalance,
+            openingBalanceType: l.type,
+          },
+        });
+      }
     }
 
     return { message: 'Default Chart of Accounts seeded successfully' };
@@ -169,7 +271,7 @@ export class AccountService {
   }
 
   async getAccounts(companyId: string, category?: AccountCategory) {
-    return this.prisma.account.findMany({
+    let accounts = await this.prisma.account.findMany({
       where: {
         companyId,
         ...(category ? { accountGroup: { category } } : {}),
@@ -179,6 +281,22 @@ export class AccountService {
       },
       orderBy: { code: 'asc' },
     });
+
+    if (accounts.length === 0) {
+      await this.seedDefaultChartOfAccounts(companyId);
+      accounts = await this.prisma.account.findMany({
+        where: {
+          companyId,
+          ...(category ? { accountGroup: { category } } : {}),
+        },
+        include: {
+          accountGroup: true,
+        },
+        orderBy: { code: 'asc' },
+      });
+    }
+
+    return accounts;
   }
 
   async createAccount(userId: string, dto: CreateAccountDto) {

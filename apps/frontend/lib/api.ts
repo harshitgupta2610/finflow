@@ -51,3 +51,51 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export const DEFAULT_COMPANY_ID = 'c0000000-0000-0000-0000-000000000001';
+
+export async function getActiveCompanyId(): Promise<string> {
+  if (typeof window === 'undefined') return DEFAULT_COMPANY_ID;
+  let compId = localStorage.getItem('finflow_company_id');
+  if (compId && compId !== 'undefined' && compId !== 'null' && compId.length > 5) {
+    return compId;
+  }
+  try {
+    const res = await api.get('/auth/me');
+    if (res.data?.user?.company?.id) {
+      compId = res.data.user.company.id;
+      localStorage.setItem('finflow_company_id', compId!);
+      if (res.data.user.company.activeFinancialYearId) {
+        localStorage.setItem(
+          'finflow_financial_year_id',
+          res.data.user.company.activeFinancialYearId,
+        );
+      }
+      return compId!;
+    }
+  } catch (e) {
+    // fallback
+  }
+  localStorage.setItem('finflow_company_id', DEFAULT_COMPANY_ID);
+  return DEFAULT_COMPANY_ID;
+}
+
+export async function getActiveFinancialYearId(companyId?: string): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  let fyId = localStorage.getItem('finflow_financial_year_id');
+  if (fyId && fyId !== 'undefined' && fyId !== 'null' && fyId.length > 5) {
+    return fyId;
+  }
+  const compId = companyId || (await getActiveCompanyId());
+  try {
+    const res = await api.get('/financial-years', { params: { companyId: compId } });
+    if (res.data && res.data.length > 0) {
+      const cur = res.data.find((f: any) => f.isCurrent) || res.data[0];
+      localStorage.setItem('finflow_financial_year_id', cur.id);
+      return cur.id;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return '';
+}

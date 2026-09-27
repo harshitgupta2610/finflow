@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api } from '../../../../lib/api';
+import { api, getActiveCompanyId } from '../../../../lib/api';
 import { Printer, ArrowLeft, Download, Send } from 'lucide-react';
 
 export default function PrintSalesInvoicePage() {
@@ -22,8 +22,7 @@ export default function PrintSalesInvoicePage() {
   const fetchInvoiceDetails = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get(`/sales/invoices/${id}`, {
         params: { companyId },

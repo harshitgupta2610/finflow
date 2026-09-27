@@ -16,12 +16,24 @@ export class AccountingController {
   @Get('vouchers')
   @ApiOperation({ summary: 'Get all audited vouchers for company' })
   async findAllVouchers(
-    @Query('companyId') companyId: string,
+    @Query('companyId') companyId?: string,
+    @CurrentUser('company') userCompany?: any,
     @Query('type') type?: VoucherType,
     @Query('status') status?: VoucherStatus,
     @Query('limit') limit?: string,
   ) {
-    return this.accountingService.findAllVouchers(companyId, type, status, limit ? parseInt(limit, 10) : 50);
+    const activeCompId = companyId || userCompany?.id || 'c0000000-0000-0000-0000-000000000001';
+    return this.accountingService.findAllVouchers(activeCompId, type, status, limit ? parseInt(limit, 10) : 50);
+  }
+
+  @Get('reports/dashboard')
+  @ApiOperation({ summary: 'Get live real-time dashboard financial metrics' })
+  async getDashboardSummary(
+    @Query('companyId') companyId?: string,
+    @CurrentUser('company') userCompany?: any,
+  ) {
+    const activeCompId = companyId || userCompany?.id || 'c0000000-0000-0000-0000-000000000001';
+    return this.accountingService.getDashboardSummary(activeCompId);
   }
 
   @Post('vouchers')

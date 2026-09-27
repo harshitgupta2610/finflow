@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
 import {
@@ -32,8 +32,7 @@ export default function VouchersListPage() {
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get('/vouchers', {
         params: { companyId },
@@ -52,7 +51,7 @@ export default function VouchersListPage() {
 
     try {
       setCancellingId(voucherId);
-      const companyId = localStorage.getItem('finflow_company_id');
+      const companyId = await getActiveCompanyId();
       await api.post(`/vouchers/${voucherId}/cancel?companyId=${companyId}`, { reason });
       await fetchVouchers();
     } catch (err: any) {

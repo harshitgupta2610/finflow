@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
 import {
@@ -51,8 +51,7 @@ export default function PartyMasterPage() {
   const fetchParties = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const res = await api.get('/parties', {
         params: { companyId },
@@ -70,20 +69,18 @@ export default function PartyMasterPage() {
     try {
       setSaving(true);
       setError(null);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) {
-        setError('No active company selected');
-        return;
-      }
+      const companyId = await getActiveCompanyId();
 
       await api.post('/parties', {
         companyId,
         name: formData.name,
+        partyType: formData.type,
         type: formData.type,
         gstin: formData.gstin || undefined,
         pan: formData.pan || undefined,
         phone: formData.phone || undefined,
         email: formData.email || undefined,
+        billingAddress: formData.address || undefined,
         address: formData.address || undefined,
         state: formData.state || 'Maharashtra',
         creditLimit: parseFloat(formData.creditLimit) || 0,
@@ -115,7 +112,7 @@ export default function PartyMasterPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete party "${name}"?`)) return;
     try {
-      const companyId = localStorage.getItem('finflow_company_id');
+      const companyId = await getActiveCompanyId();
       await api.delete(`/parties/${id}?companyId=${companyId}`);
       await fetchParties();
     } catch (err: any) {

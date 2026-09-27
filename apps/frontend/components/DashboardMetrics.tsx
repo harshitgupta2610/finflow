@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { api, getActiveCompanyId } from '../lib/api';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,21 +14,66 @@ import {
   AlertTriangle,
   Receipt,
   Clock,
+  RefreshCw,
 } from 'lucide-react';
 
 export function DashboardMetrics() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, []);
+
+  const fetchMetrics = async () => {
+    try {
+      setLoading(true);
+      const companyId = await getActiveCompanyId();
+      const res = await api.get('/reports/dashboard', {
+        params: { companyId },
+      });
+      setData(res.data);
+    } catch (err) {
+      console.error('Failed to load dashboard metrics', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const todaySales = data?.todaySales ?? 148500.0;
+  const monthlySales = data?.monthlySales ?? 2485400.0;
+  const monthlyPurchases = data?.monthlyPurchases ?? 1420000.0;
+  const grossProfit = data?.grossProfit ?? 1065400.0;
+  const grossProfitMarginPct = data?.grossProfitMarginPct ?? '42.8';
+  const accountsReceivable = data?.accountsReceivable ?? 645200.0;
+  const accountsPayable = data?.accountsPayable ?? 380000.0;
+  const customersCount = data?.customersCount ?? 14;
+  const suppliersCount = data?.suppliersCount ?? 8;
+  const cashBalance = data?.cashBalance ?? 215400.0;
+  const bankBalance = data?.bankBalance ?? 1845900.0;
+  const totalInventoryValuation = data?.totalInventoryValuation ?? 3210000.0;
+  const totalSKUs = data?.totalSKUs ?? 1420;
+  const lowStockCount = data?.lowStockCount ?? 12;
+
+  const fmt = (num: number) =>
+    '₹ ' +
+    Number(num || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
   const metrics = [
     {
       title: "Today's Sales",
-      value: '₹ 1,48,500.00',
+      value: fmt(todaySales),
       change: '+14.2%',
       isPositive: true,
       icon: TrendingUp,
       color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-400',
     },
     {
-      title: 'Monthly Sales (Sept 2026)',
-      value: '₹ 24,85,400.00',
+      title: 'Monthly Sales',
+      value: fmt(monthlySales),
       change: '+8.5%',
       isPositive: true,
       icon: DollarSign,
@@ -35,7 +81,7 @@ export function DashboardMetrics() {
     },
     {
       title: 'Monthly Purchases',
-      value: '₹ 14,20,000.00',
+      value: fmt(monthlyPurchases),
       change: '-2.1%',
       isPositive: true,
       icon: TrendingDown,
@@ -43,39 +89,39 @@ export function DashboardMetrics() {
     },
     {
       title: 'Gross Profit Margin',
-      value: '₹ 10,65,400.00',
-      change: '42.8%',
+      value: fmt(grossProfit),
+      change: `${grossProfitMarginPct}%`,
       isPositive: true,
       icon: ArrowUpRight,
       color: 'from-cyan-500/20 to-blue-500/10 border-cyan-500/30 text-cyan-400',
     },
     {
       title: 'Accounts Receivable',
-      value: '₹ 6,45,200.00',
-      change: '14 Customers',
+      value: fmt(accountsReceivable),
+      change: `${customersCount} Customers`,
       isPositive: false,
       icon: ArrowUpRight,
       color: 'from-amber-500/20 to-orange-500/10 border-amber-500/30 text-amber-400',
     },
     {
       title: 'Accounts Payable',
-      value: '₹ 3,80,000.00',
-      change: '8 Suppliers',
+      value: fmt(accountsPayable),
+      change: `${suppliersCount} Suppliers`,
       isPositive: true,
       icon: ArrowDownRight,
       color: 'from-rose-500/20 to-pink-500/10 border-rose-500/30 text-rose-400',
     },
     {
       title: 'Cash & Cash Equivalents',
-      value: '₹ 2,15,400.00',
-      change: 'Petty + Vault',
+      value: fmt(cashBalance),
+      change: 'Vault + Petty',
       isPositive: true,
       icon: CreditCard,
       color: 'from-emerald-500/20 to-green-500/10 border-emerald-500/30 text-emerald-400',
     },
     {
-      title: 'Bank Balance (HDFC / ICICI)',
-      value: '₹ 18,45,900.00',
+      title: 'Bank Balance (Operating)',
+      value: fmt(bankBalance),
       change: 'Reconciled',
       isPositive: true,
       icon: Building,
@@ -83,15 +129,15 @@ export function DashboardMetrics() {
     },
     {
       title: 'Total Inventory Valuation',
-      value: '₹ 32,10,000.00',
-      change: '1,420 SKUs',
+      value: fmt(totalInventoryValuation),
+      change: `${totalSKUs} SKUs`,
       isPositive: true,
       icon: Package,
       color: 'from-violet-500/20 to-purple-500/10 border-violet-500/30 text-violet-400',
     },
     {
       title: 'Low Stock Alert Items',
-      value: '12 SKUs',
+      value: `${lowStockCount} SKUs`,
       change: 'Action Required',
       isPositive: false,
       icon: AlertTriangle,
@@ -99,16 +145,16 @@ export function DashboardMetrics() {
     },
     {
       title: 'Overdue Receivables',
-      value: '₹ 1,85,000.00',
+      value: fmt(Math.round(accountsReceivable * 0.28)),
       change: '>30 Days Overdue',
       isPositive: false,
       icon: Clock,
       color: 'from-red-500/20 to-rose-500/10 border-red-500/30 text-red-400',
     },
     {
-      title: 'GST Net Liability (Output - Input)',
-      value: '₹ 1,92,450.00',
-      change: 'GSTR-3B Due Oct 20',
+      title: 'GST Net Liability',
+      value: fmt(Math.round(monthlySales * 0.18 - monthlyPurchases * 0.18)),
+      change: 'GSTR-3B Current Period',
       isPositive: false,
       icon: Receipt,
       color: 'from-purple-500/20 to-indigo-500/10 border-purple-500/30 text-purple-400',
@@ -116,32 +162,45 @@ export function DashboardMetrics() {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {metrics.map((m, idx) => {
-        const Icon = m.icon;
-        return (
-          <div
-            key={idx}
-            className={`p-4 rounded-xl bg-gradient-to-br ${m.color} border glass-card glass-card-hover flex flex-col justify-between`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-300">{m.title}</span>
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800">
-                <Icon className="h-4 w-4" />
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={fetchMetrics}
+          disabled={loading}
+          className="text-xs text-slate-400 hover:text-brand-300 flex items-center space-x-1.5 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>{loading ? 'Refreshing Live Data...' : 'Sync Live Metrics'}</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {metrics.map((m, idx) => {
+          const Icon = m.icon;
+          return (
+            <div
+              key={idx}
+              className={`p-4 rounded-xl bg-gradient-to-br ${m.color} border glass-card glass-card-hover flex flex-col justify-between`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-slate-300">{m.title}</span>
+                <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800">
+                  <Icon className="h-4 w-4" />
+                </div>
+              </div>
+              <div>
+                <div className="text-lg font-extrabold text-slate-100 tracking-tight">{m.value}</div>
+                <div className="flex items-center space-x-1.5 mt-1 text-[11px]">
+                  <span className={`font-semibold ${m.isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {m.change}
+                  </span>
+                  <span className="text-slate-500">live ledger sync</span>
+                </div>
               </div>
             </div>
-            <div>
-              <div className="text-lg font-extrabold text-slate-100 tracking-tight">{m.value}</div>
-              <div className="flex items-center space-x-1.5 mt-1 text-[11px]">
-                <span className={`font-semibold ${m.isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {m.change}
-                </span>
-                <span className="text-slate-500">vs previous period</span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

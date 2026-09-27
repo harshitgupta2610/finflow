@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { api } from '../../lib/api';
+import { api, getActiveCompanyId } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
 import {
@@ -39,8 +39,7 @@ export default function ReportsPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const companyId = localStorage.getItem('finflow_company_id');
-      if (!companyId) return;
+      const companyId = await getActiveCompanyId();
 
       const [tbRes, plRes, bsRes, accRes] = await Promise.all([
         api.get('/reports/trial-balance', { params: { companyId } }).catch(() => null),
@@ -68,7 +67,7 @@ export default function ReportsPage() {
 
   const fetchLedger = async (accountId: string, compId?: string) => {
     try {
-      const companyId = compId || localStorage.getItem('finflow_company_id');
+      const companyId = compId || (await getActiveCompanyId());
       if (!companyId || !accountId) return;
 
       const res = await api.get('/reports/ledger', {

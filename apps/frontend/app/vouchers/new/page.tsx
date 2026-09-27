@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '../../../components/Header';
 import { Sidebar } from '../../../components/Sidebar';
-import { api } from '../../../lib/api';
+import { api, getActiveCompanyId, getActiveFinancialYearId } from '../../../lib/api';
 import {
   FileText,
   Plus,
@@ -44,41 +44,10 @@ export default function NewVoucherPage() {
   const fetchMasterData = async () => {
     try {
       setInitialLoading(true);
-      let companyId = localStorage.getItem('finflow_company_id');
-
-      // If companyId is not in localStorage yet, fetch from /auth/me
-      if (!companyId) {
-        const meRes = await api.get('/auth/me');
-        if (meRes.data?.user?.company?.id) {
-          companyId = meRes.data.user.company.id;
-          localStorage.setItem('finflow_company_id', companyId!);
-          if (meRes.data.user.company.activeFinancialYearId) {
-            localStorage.setItem(
-              'finflow_financial_year_id',
-              meRes.data.user.company.activeFinancialYearId,
-            );
-            setFinancialYearId(meRes.data.user.company.activeFinancialYearId);
-          }
-        }
-      }
-
-      if (!companyId) {
-        setErrorMessage('No active company found. Please log in again.');
-        return;
-      }
-
-      // Fetch financial years if not set
-      let storedFyId = localStorage.getItem('finflow_financial_year_id');
-      if (!storedFyId) {
-        const fyRes = await api.get('/financial-years', { params: { companyId } }).catch(() => null);
-        if (fyRes?.data && fyRes.data.length > 0) {
-          const currentFy = fyRes.data.find((f: any) => f.isCurrent) || fyRes.data[0];
-          storedFyId = currentFy.id;
-          localStorage.setItem('finflow_financial_year_id', currentFy.id);
-        }
-      }
-      if (storedFyId) {
-        setFinancialYearId(storedFyId);
+      const companyId = await getActiveCompanyId();
+      const fyId = await getActiveFinancialYearId(companyId);
+      if (fyId) {
+        setFinancialYearId(fyId);
       }
 
       // Fetch chart of accounts
@@ -134,14 +103,10 @@ export default function NewVoucherPage() {
       return;
     }
 
-    const companyId = localStorage.getItem('finflow_company_id');
-    if (!companyId) {
-      setErrorMessage('Active company not found. Please re-login.');
-      return;
-    }
-
-    if (!financialYearId) {
-      setErrorMessage('Active financial year not found. Please select a financial year.');
+    const companyId = await getActiveCompanyId();
+    const effectiveFyId = financialYearId || (await getActiveFinancialYearId(companyId));
+    if (!effectiveFyId) {
+      setErrorMessage('Active financial year not found. Please verify company financial year.');
       return;
     }
 
