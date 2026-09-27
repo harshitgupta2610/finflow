@@ -13,6 +13,8 @@ import {
   Layers,
   DollarSign,
   TrendingUp,
+  X,
+  Save,
 } from 'lucide-react';
 
 const mockItems = [
@@ -81,6 +83,25 @@ const mockItems = [
 export default function ItemMasterPage() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: '',
+    hsnSac: '8481.80.20',
+    category: 'Hardware & Fittings',
+    unit: 'PCS',
+    gstRate: '18',
+    purchasePrice: '0.00',
+    sellingPrice: '0.00',
+    reorderLevel: '10',
+  });
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    alert(`Item SKU "${formData.sku}" saved successfully!`);
+    setShowModal(false);
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -102,7 +123,10 @@ export default function ItemMasterPage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <button className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2">
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2"
+              >
                 <Plus className="h-4 w-4" />
                 <span>Create New Item SKU</span>
               </button>
@@ -199,6 +223,142 @@ export default function ItemMasterPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Add Item SKU Modal */}
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+              <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 glass-card shadow-2xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <h3 className="text-base font-extrabold text-slate-100">Create New Item SKU</h3>
+                  <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-200">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSave} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-300 mb-1">Item Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Industrial Brass Valve 1/2"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Item SKU Code *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="VALVE-BRASS-05"
+                        value={formData.sku}
+                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">HSN / SAC Code</label>
+                      <input
+                        type="text"
+                        placeholder="8481.80.20"
+                        value={formData.hsnSac}
+                        onChange={(e) => setFormData({ ...formData, hsnSac: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Unit</label>
+                      <select
+                        value={formData.unit}
+                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="PCS">PCS</option>
+                        <option value="KGS">KGS</option>
+                        <option value="MTR">MTR</option>
+                        <option value="CAN">CAN</option>
+                        <option value="BOX">BOX</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">GST Rate</label>
+                      <select
+                        value={formData.gstRate}
+                        onChange={(e) => setFormData({ ...formData, gstRate: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="0">0% GST</option>
+                        <option value="5">5% GST</option>
+                        <option value="12">12% GST</option>
+                        <option value="18">18% GST</option>
+                        <option value="28">28% GST</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Reorder Level</label>
+                      <input
+                        type="number"
+                        value={formData.reorderLevel}
+                        onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Purchase Price (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.purchasePrice}
+                        onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Selling Price (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.sellingPrice}
+                        onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/30 flex items-center space-x-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span>Save Item SKU</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

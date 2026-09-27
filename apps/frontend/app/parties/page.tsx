@@ -14,7 +14,8 @@ import {
   CreditCard,
   CheckCircle2,
   AlertCircle,
-  FileSpreadsheet,
+  X,
+  Save,
 } from 'lucide-react';
 
 const mockParties = [
@@ -76,6 +77,24 @@ export default function PartyMasterPage() {
   const [filterType, setFilterType] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    partyType: 'CUSTOMER',
+    gstin: '',
+    pan: '',
+    phone: '',
+    email: '',
+    state: 'Maharashtra',
+    creditLimit: '100000',
+    creditDays: '30',
+  });
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    alert(`Party "${formData.name}" created successfully!`);
+    setShowModal(false);
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -200,6 +219,123 @@ export default function PartyMasterPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Add Party Modal */}
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+              <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 glass-card shadow-2xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <h3 className="text-base font-extrabold text-slate-100">Add New Party (Customer/Supplier)</h3>
+                  <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-200">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSave} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-300 mb-1">Party Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Apex Trading Co"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Party Type *</label>
+                      <select
+                        value={formData.partyType}
+                        onChange={(e) => setFormData({ ...formData, partyType: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="CUSTOMER">CUSTOMER</option>
+                        <option value="SUPPLIER">SUPPLIER</option>
+                        <option value="BOTH">BOTH</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">State *</label>
+                      <input
+                        type="text"
+                        value={formData.state}
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">GSTIN (15 Digits)</label>
+                      <input
+                        type="text"
+                        placeholder="27ABCDE1234F1Z5"
+                        value={formData.gstin}
+                        onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">PAN (10 Digits)</label>
+                      <input
+                        type="text"
+                        placeholder="ABCDE1234F"
+                        value={formData.pan}
+                        onChange={(e) => setFormData({ ...formData, pan: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Phone Number</label>
+                      <input
+                        type="text"
+                        placeholder="+91 98765 43210"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-300 mb-1">Credit Limit (₹)</label>
+                      <input
+                        type="number"
+                        value={formData.creditLimit}
+                        onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-600/30 flex items-center space-x-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span>Save Party Master</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

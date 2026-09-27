@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Header } from '../components/Header';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardMetrics } from '../components/DashboardMetrics';
@@ -9,9 +11,26 @@ import { ReceivablesChart } from '../components/ReceivablesChart';
 import { RecentTransactionsWidget } from '../components/RecentTransactionsWidget';
 import { OverdueInvoicesWidget } from '../components/OverdueInvoicesWidget';
 import { LowStockWidget } from '../components/LowStockWidget';
-import { Plus, ArrowUpRight, ArrowDownRight, FileSpreadsheet, ShieldAlert } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        router.push('/vouchers/new');
+      }
+      if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        router.push('/vouchers/new');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
+
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <Sidebar />
@@ -37,14 +56,20 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <button className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2">
+              <Link
+                href="/vouchers/new"
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2"
+              >
                 <Plus className="h-4 w-4" />
                 <span>New Sales Invoice (Alt+S)</span>
-              </button>
-              <button className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700">
+              </Link>
+              <Link
+                href="/vouchers/new"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700"
+              >
                 <Plus className="h-4 w-4" />
                 <span>New Voucher (Alt+V)</span>
-              </button>
+              </Link>
             </div>
           </div>
 
