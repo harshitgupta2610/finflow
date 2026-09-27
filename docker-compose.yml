@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finflow_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: finflow_user
+      POSTGRES_PASSWORD: finflow_secure_password
+      POSTGRES_DB: finflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finflow_user -d finflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: finflow_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
+    container_name: finflow_backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=postgresql://finflow_user:finflow_secure_password@postgres:5432/finflow_db?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_ACCESS_SECRET=finflow_access_secret_super_key_2026_change_in_production
+      - JWT_REFRESH_SECRET=finflow_refresh_secret_super_key_2026_change_in_production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+    container_name: finflow_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,421 @@
+// FinFlow Production Database Schema
+// Database Engine: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// 1. ORGANIZATION & MULTI-TENANCY
+// -------------------------------------------------------------
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companies   Company[]
+  users       User[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+model Company {
+  id                    String   @id @default(uuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  legalName             String
+  displayName           String
+  pan                   String?
+  gstin                 String?
+  address               String?
+  state                 String?
+  pincode               String?
+  email                 String?
+  phone                 String?
+  logo                  String?
+  currency              String   @default("INR")
+  activeFinancialYearId String?  @unique
+  taxConfig             Json?
+  invoiceConfig         Json?
+  bankDetails           Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  branches              Branch[]
+  financialYears        FinancialYear[]
+  userRoles             UserRole[]
+  auditLogs             AuditLog[]
+  accountGroups         AccountGroup[]
+  accounts              Account[]
+  parties               Party[]
+  items                 Item[]
+  vouchers              Voucher[]
+  journalEntries        JournalEntry[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  code         String
+  address      String?
+  gstin        String?
+  isHeadOffice Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  journalLines JournalEntryLine[]
+
+  @@unique([companyId, code])
+  @@map("branches")
+}
+
+model FinancialYear {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "FY 2024-25"
+  startDate   DateTime
+  endDate     DateTime
+  isLocked    Boolean  @default(false)
+  isCurrent   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  journalEntries JournalEntry[]
+  vouchers       Voucher[]
+
+  @@unique([companyId, name])
+  @@map("financial_years")
+}
+
+// -------------------------------------------------------------
+// 2. USERS, ROLES & SECURITY
+// -------------------------------------------------------------
+
+model User {
+  id             String   @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String   @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  phone          String?
+  isActive       Boolean  @default(true)
+  isVerified     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userRoles        UserRole[]
+  refreshTokens    RefreshToken[]
+  auditLogs        AuditLog[]
+  createdVouchers  Voucher[] @relation("VoucherCreatedBy")
+  approvedVouchers Voucher[] @relation("VoucherApprovedBy")
+
+  @@map("users")
+}
+
+enum RoleName {
+  OWNER
+  ADMIN
+  ACCOUNTANT
+  SALES
+  PURCHASE
+  INVENTORY_MANAGER
+  AUDITOR
+  VIEWER
+}
+
+model Role {
+  id          String    @id @default(uuid())
+  name        RoleName  @unique
+  description String?
+  isSystem    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, companyId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. "company.read", "sales.create"
+  description String?
+  module      String   // e.g. "Sales", "Accounting", "Company"
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  isRevoked   Boolean  @default(false)
+  userAgent   String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  companyId      String?
+  company        Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action         String       // e.g. "AUTH_LOGIN", "COMPANY_CREATE", "VOUCHER_CANCEL"
+  entity         String       // e.g. "User", "Voucher", "Company"
+  entityId       String?
+  beforeState    Json?
+  afterState     Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime     @default(now())
+
+  @@map("audit_logs")
+}
+
+// -------------------------------------------------------------
+// 3. CHART OF ACCOUNTS & DOUBLE-ENTRY ACCOUNTING
+// -------------------------------------------------------------
+
+enum AccountCategory {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum BalanceType {
+  DEBIT
+  CREDIT
+}
+
+model AccountGroup {
+  id          String          @id @default(uuid())
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  code        String
+  category    AccountCategory
+  parentId    String?
+  parent      AccountGroup?   @relation("GroupHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children    AccountGroup[]  @relation("GroupHierarchy")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  accounts    Account[]
+
+  @@unique([companyId, code])
+  @@map("account_groups")
+}
+
+model Account {
+  id                 String       @id @default(uuid())
+  companyId          String
+  company            Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountGroupId     String
+  accountGroup       AccountGroup @relation(fields: [accountGroupId], references: [id], onDelete: Restrict)
+  name               String
+  code               String
+  openingBalance     Decimal      @default(0.0000) @db.Decimal(18, 4)
+  openingBalanceType BalanceType  @default(DEBIT)
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  journalLines       JournalEntryLine[]
+
+  @@unique([companyId, code])
+  @@map("accounts")
+}
+
+// -------------------------------------------------------------
+// 4. PARTIES & ITEMS (MASTERS)
+// -------------------------------------------------------------
+
+enum PartyType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+model Party {
+  id              String    @id @default(uuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String
+  partyType       PartyType @default(CUSTOMER)
+  gstin           String?
+  pan             String?
+  phone           String?
+  email           String?
+  billingAddress  String?
+  shippingAddress String?
+  state           String?
+  pincode         String?
+  creditLimit     Decimal?  @db.Decimal(18, 4)
+  creditDays      Int?
+  openingBalance  Decimal   @default(0.0000) @db.Decimal(18, 4)
+  bankDetails     Json?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  journalLines    JournalEntryLine[]
+
+  @@map("parties")
+}
+
+model Item {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  sku           String
+  hsnSac        String?
+  category      String?
+  unit          String   @default("PCS")
+  gstRate       Decimal  @default(18.00) @db.Decimal(5, 2)
+  purchasePrice Decimal  @default(0.0000) @db.Decimal(18, 4)
+  sellingPrice  Decimal  @default(0.0000) @db.Decimal(18, 4)
+  mrp           Decimal? @db.Decimal(18, 4)
+  reorderLevel  Decimal? @db.Decimal(18, 4)
+  barcode       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, sku])
+  @@map("items")
+}
+
+// -------------------------------------------------------------
+// 5. VOUCHERS & JOURNAL ENTRIES
+// -------------------------------------------------------------
+
+enum VoucherType {
+  SALES
+  PURCHASE
+  RECEIPT
+  PAYMENT
+  JOURNAL
+  CONTRA
+  DEBIT_NOTE
+  CREDIT_NOTE
+}
+
+enum VoucherStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  CANCELLED
+  REJECTED
+}
+
+model Voucher {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  voucherType     VoucherType
+  voucherNumber   String
+  date            DateTime
+  narration       String?
+  status          VoucherStatus @default(APPROVED)
+  createdById     String
+  createdBy       User          @relation("VoucherCreatedBy", fields: [createdById], references: [id])
+  approvedById    String?
+  approvedBy      User?         @relation("VoucherApprovedBy", fields: [approvedById], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  journalEntry    JournalEntry?
+
+  @@unique([companyId, financialYearId, voucherType, voucherNumber])
+  @@map("vouchers")
+}
+
+model JournalEntry {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  voucherId       String        @unique
+  voucher         Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  date            DateTime
+  narration       String?
+  isReversal      Boolean       @default(false)
+  reversalOfId    String?
+  createdAt       DateTime      @default(now())
+
+  lines           JournalEntryLine[]
+
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  debit          Decimal      @default(0.0000) @db.Decimal(18, 4)
+  credit         Decimal      @default(0.0000) @db.Decimal(18, 4)
+  partyId        String?
+  party          Party?       @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  branchId       String?
+  branch         Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@map("journal_entry_lines")
+}

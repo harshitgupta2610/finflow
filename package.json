@@ -1,0 +1,19 @@
+{
+  "name": "finflow-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm --prefix apps/backend run start:dev",
+    "dev:frontend": "npm --prefix apps/frontend run dev",
+    "build:backend": "npm --prefix apps/backend run build",
+    "build:frontend": "npm --prefix apps/frontend run build",
+    "prisma:generate": "npm --prefix apps/backend run prisma:generate",
+    "prisma:push": "npm --prefix apps/backend run prisma:push",
+    "prisma:migrate": "npm --prefix apps/backend run prisma:migrate",
+    "prisma:seed": "npm --prefix apps/backend run prisma:seed",
+    "test:backend": "npm --prefix apps/backend run test"
+  }
+}
