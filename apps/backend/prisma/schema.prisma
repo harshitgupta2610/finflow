@@ -60,6 +60,11 @@ model Company {
   items                 Item[]
   vouchers              Voucher[]
   journalEntries        JournalEntry[]
+  salesInvoices         SalesInvoice[]
+  purchaseInvoices      PurchaseInvoice[]
+  quotations            Quotation[]
+  salesOrders           SalesOrder[]
+  purchaseOrders        PurchaseOrder[]
 
   @@map("companies")
 }
@@ -94,8 +99,13 @@ model FinancialYear {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  journalEntries JournalEntry[]
-  vouchers       Voucher[]
+  journalEntries   JournalEntry[]
+  vouchers         Voucher[]
+  salesInvoices    SalesInvoice[]
+  purchaseInvoices PurchaseInvoice[]
+  quotations       Quotation[]
+  salesOrders      SalesOrder[]
+  purchaseOrders   PurchaseOrder[]
 
   @@unique([companyId, name])
   @@map("financial_years")
@@ -310,7 +320,12 @@ model Party {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  journalLines    JournalEntryLine[]
+  journalLines     JournalEntryLine[]
+  salesInvoices    SalesInvoice[]
+  purchaseInvoices PurchaseInvoice[]
+  quotations       Quotation[]
+  salesOrders      SalesOrder[]
+  purchaseOrders   PurchaseOrder[]
 
   @@map("parties")
 }
@@ -333,6 +348,9 @@ model Item {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  salesLines    SalesInvoiceLine[]
+  purchaseLines PurchaseInvoiceLine[]
 
   @@unique([companyId, sku])
   @@map("items")
@@ -379,7 +397,9 @@ model Voucher {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  journalEntry    JournalEntry?
+  journalEntry     JournalEntry?
+  salesInvoice     SalesInvoice?
+  purchaseInvoice  PurchaseInvoice?
 
   @@unique([companyId, financialYearId, voucherType, voucherNumber])
   @@map("vouchers")
@@ -418,4 +438,189 @@ model JournalEntryLine {
   branch         Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@map("journal_entry_lines")
+}
+
+// -------------------------------------------------------------
+// 6. SALES MODULE (INVOICES, QUOTATIONS, ORDERS)
+// -------------------------------------------------------------
+
+enum PaymentMode {
+  CASH
+  BANK
+  CREDIT
+  UPI
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+model SalesInvoice {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  voucherId       String        @unique
+  voucher         Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  invoiceNumber   String
+  invoiceDate     DateTime
+  dueDate         DateTime?
+  customerId      String
+  customer        Party         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  placeOfSupply   String?
+  isTaxInclusive  Boolean       @default(false)
+  paymentMode     PaymentMode   @default(CREDIT)
+  status          InvoiceStatus @default(UNPAID)
+  
+  subtotal        Decimal       @db.Decimal(18, 4)
+  discountTotal   Decimal       @default(0.0000) @db.Decimal(18, 4)
+  cgstTotal       Decimal       @default(0.0000) @db.Decimal(18, 4)
+  sgstTotal       Decimal       @default(0.0000) @db.Decimal(18, 4)
+  igstTotal       Decimal       @default(0.0000) @db.Decimal(18, 4)
+  freightCharges  Decimal       @default(0.0000) @db.Decimal(18, 4)
+  roundOff        Decimal       @default(0.0000) @db.Decimal(18, 4)
+  totalAmount     Decimal       @db.Decimal(18, 4)
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  lines           SalesInvoiceLine[]
+
+  @@unique([companyId, financialYearId, invoiceNumber])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceLine {
+  id             String       @id @default(uuid())
+  salesInvoiceId String
+  salesInvoice   SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantity       Decimal      @db.Decimal(18, 4)
+  unitPrice      Decimal      @db.Decimal(18, 4)
+  discount       Decimal      @default(0.0000) @db.Decimal(18, 4)
+  gstRate        Decimal      @default(18.00) @db.Decimal(5, 2)
+  taxableAmount  Decimal      @db.Decimal(18, 4)
+  cgst           Decimal      @default(0.0000) @db.Decimal(18, 4)
+  sgst           Decimal      @default(0.0000) @db.Decimal(18, 4)
+  igst           Decimal      @default(0.0000) @db.Decimal(18, 4)
+  total          Decimal      @db.Decimal(18, 4)
+
+  @@map("sales_invoice_lines")
+}
+
+model Quotation {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  quotationNo     String
+  date            DateTime
+  validUntil      DateTime?
+  customerId      String
+  customer        Party         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  totalAmount     Decimal       @db.Decimal(18, 4)
+  status          String        @default("SENT") // DRAFT, SENT, ACCEPTED, REJECTED
+  createdAt       DateTime      @default(now())
+
+  @@unique([companyId, quotationNo])
+  @@map("quotations")
+}
+
+model SalesOrder {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  orderNumber     String
+  date            DateTime
+  customerId      String
+  customer        Party         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  totalAmount     Decimal       @db.Decimal(18, 4)
+  status          String        @default("CONFIRMED") // CONFIRMED, DISPATCHED, DELIVERED, CANCELLED
+  createdAt       DateTime      @default(now())
+
+  @@unique([companyId, orderNumber])
+  @@map("sales_orders")
+}
+
+// -------------------------------------------------------------
+// 7. PURCHASE MODULE
+// -------------------------------------------------------------
+
+model PurchaseInvoice {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  voucherId       String        @unique
+  voucher         Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  invoiceNumber   String
+  invoiceDate     DateTime
+  dueDate         DateTime?
+  supplierId      String
+  supplier        Party         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  placeOfSupply   String?
+  isTaxInclusive  Boolean       @default(false)
+  paymentMode     PaymentMode   @default(CREDIT)
+  status          InvoiceStatus @default(UNPAID)
+
+  subtotal        Decimal       @db.Decimal(18, 4)
+  discountTotal   Decimal       @default(0.0000) @db.Decimal(18, 4)
+  inputCgst       Decimal       @default(0.0000) @db.Decimal(18, 4)
+  inputSgst       Decimal       @default(0.0000) @db.Decimal(18, 4)
+  inputIgst       Decimal       @default(0.0000) @db.Decimal(18, 4)
+  freightCharges  Decimal       @default(0.0000) @db.Decimal(18, 4)
+  roundOff        Decimal       @default(0.0000) @db.Decimal(18, 4)
+  totalAmount     Decimal       @db.Decimal(18, 4)
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  lines           PurchaseInvoiceLine[]
+
+  @@unique([companyId, financialYearId, invoiceNumber])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceLine {
+  id                String          @id @default(uuid())
+  purchaseInvoiceId String
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  itemId            String
+  item              Item            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantity          Decimal         @db.Decimal(18, 4)
+  unitPrice         Decimal         @db.Decimal(18, 4)
+  discount          Decimal         @default(0.0000) @db.Decimal(18, 4)
+  gstRate           Decimal         @default(18.00) @db.Decimal(5, 2)
+  taxableAmount     Decimal         @db.Decimal(18, 4)
+  inputCgst         Decimal         @default(0.0000) @db.Decimal(18, 4)
+  inputSgst         Decimal         @default(0.0000) @db.Decimal(18, 4)
+  inputIgst         Decimal         @default(0.0000) @db.Decimal(18, 4)
+  total             Decimal         @db.Decimal(18, 4)
+
+  @@map("purchase_invoice_lines")
+}
+
+model PurchaseOrder {
+  id              String        @id @default(uuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  financialYearId String
+  financialYear   FinancialYear @relation(fields: [financialYearId], references: [id], onDelete: Restrict)
+  orderNumber     String
+  date            DateTime
+  supplierId      String
+  supplier        Party         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  totalAmount     Decimal       @db.Decimal(18, 4)
+  status          String        @default("ISSUED") // ISSUED, RECEIVED, CANCELLED
+  createdAt       DateTime      @default(now())
+
+  @@unique([companyId, orderNumber])
+  @@map("purchase_orders")
 }
