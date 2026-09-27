@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Package, AlertTriangle, ArrowRight } from 'lucide-react';
 
 const lowStockItems = [
@@ -17,20 +18,26 @@ export function LowStockWidget() {
           <AlertTriangle className="h-4 w-4 text-orange-400" />
           <h3 className="text-sm font-bold text-slate-100">Low Stock Reorder Alerts</h3>
         </div>
-        <button className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center space-x-1">
+        <Link
+          href="/purchases/new"
+          className="text-xs text-brand-400 hover:text-brand-300 font-semibold flex items-center space-x-1"
+        >
           <span>Create PO</span>
           <ArrowRight className="h-3 w-3" />
-        </button>
+        </Link>
       </div>
 
       <div className="space-y-3">
         {lowStockItems.map((item, idx) => (
-          <div
+          <Link
             key={idx}
-            className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between"
+            href="/items"
+            className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between hover:border-slate-700 transition-colors block"
           >
             <div>
-              <div className="text-xs font-bold text-slate-200">{item.name}</div>
+              <div className="text-xs font-bold text-slate-200 hover:text-brand-400">
+                {item.name}
+              </div>
               <div className="text-[10px] font-mono text-slate-500 mt-0.5">SKU: {item.sku}</div>
             </div>
             <div className="text-right">
@@ -39,7 +46,7 @@ export function LowStockWidget() {
               </div>
               <div className="text-[10px] text-slate-500 mt-0.5">Reorder at {item.reorder} {item.unit}</div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

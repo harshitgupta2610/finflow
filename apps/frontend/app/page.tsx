@@ -20,7 +20,7 @@ export default function DashboardPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
-        router.push('/vouchers/new');
+        router.push('/sales/new');
       }
       if (e.altKey && (e.key === 'v' || e.key === 'V')) {
         e.preventDefault();
@@ -57,7 +57,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center space-x-3">
               <Link
-                href="/vouchers/new"
+                href="/sales/new"
                 className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />

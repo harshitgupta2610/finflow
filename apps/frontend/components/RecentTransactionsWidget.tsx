@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { ArrowUpRight, ArrowDownRight, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const recentVouchers = [
@@ -54,9 +55,9 @@ export function RecentTransactionsWidget() {
           <h3 className="text-sm font-bold text-slate-100">Recent Financial Vouchers</h3>
           <p className="text-xs text-slate-400">Transactionally balanced double-entry vouchers</p>
         </div>
-        <button className="text-xs text-brand-400 hover:text-brand-300 font-semibold">
+        <Link href="/vouchers/new" className="text-xs text-brand-400 hover:text-brand-300 font-semibold">
           View All Vouchers →
-        </button>
+        </Link>
       </div>
 
       <div className="space-y-3">
