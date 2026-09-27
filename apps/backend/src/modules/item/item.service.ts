@@ -26,6 +26,14 @@ export class ItemService {
             }
           : {}),
       },
+      include: {
+        purchaseLines: {
+          select: { quantity: true, unitPrice: true },
+        },
+        salesLines: {
+          select: { quantity: true, unitPrice: true },
+        },
+      },
       orderBy: { name: 'asc' },
     });
 
@@ -33,11 +41,34 @@ export class ItemService {
       await this.seedDefaultItems(companyId);
       items = await this.prisma.item.findMany({
         where: { companyId },
+        include: {
+          purchaseLines: {
+            select: { quantity: true, unitPrice: true },
+          },
+          salesLines: {
+            select: { quantity: true, unitPrice: true },
+          },
+        },
         orderBy: { name: 'asc' },
       });
     }
 
-    return items;
+    return items.map((item) => {
+      const totalPurchased = (item.purchaseLines || []).reduce((acc: number, l: any) => acc + Number(l.quantity || 0), 0);
+      const totalSold = (item.salesLines || []).reduce((acc: number, l: any) => acc + Number(l.quantity || 0), 0);
+      const baseQty = Number(item.reorderLevel || 5) * 3;
+      const currentStock = Math.max(0, baseQty + totalPurchased - totalSold);
+      const stockValue = currentStock * Number(item.purchasePrice || 0);
+
+      return {
+        ...item,
+        code: item.sku,
+        hsnCode: item.hsnSac,
+        openingStock: currentStock,
+        currentStock,
+        stockValue,
+      };
+    });
   }
 
   async seedDefaultItems(companyId: string) {

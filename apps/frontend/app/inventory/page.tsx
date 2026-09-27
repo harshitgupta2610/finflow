@@ -42,20 +42,27 @@ export default function InventoryPage() {
     }
   };
 
-  const filteredItems = items.filter(
-    (item) =>
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.code.toLowerCase().includes(search.toLowerCase()) ||
-      (item.hsnCode && item.hsnCode.includes(search)),
-  );
+  const filteredItems = items.filter((item) => {
+    const nameMatch = item.name?.toLowerCase().includes(search.toLowerCase());
+    const codeMatch = (item.sku || item.code || '')
+      .toLowerCase()
+      .includes(search.toLowerCase());
+    const hsnMatch = (item.hsnSac || item.hsnCode || '').includes(search);
+    return nameMatch || codeMatch || hsnMatch;
+  });
 
   const totalSKUs = items.length;
   const totalValuation = items.reduce(
-    (acc, item) => acc + Number(item.openingStock || 0) * Number(item.purchasePrice || 0),
+    (acc, item) =>
+      acc +
+      Number(item.currentStock ?? item.openingStock ?? 0) *
+        Number(item.purchasePrice || 0),
     0,
   );
   const lowStockCount = items.filter(
-    (item) => Number(item.openingStock || 0) <= Number(item.reorderLevel || 10),
+    (item) =>
+      Number(item.currentStock ?? item.openingStock ?? 0) <=
+      Number(item.reorderLevel || 10),
   ).length;
 
   return (
@@ -213,7 +220,7 @@ export default function InventoryPage() {
                   </tr>
                 ) : (
                   filteredItems.map((item) => {
-                    const qty = Number(item.openingStock || 0);
+                    const qty = Number(item.currentStock ?? item.openingStock ?? 0);
                     const pRate = Number(item.purchasePrice || 0);
                     const sRate = Number(item.sellingPrice || 0);
                     const val = qty * pRate;
@@ -221,10 +228,10 @@ export default function InventoryPage() {
                     return (
                       <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
                         <td className="py-3.5 px-4 font-mono font-semibold text-brand-400">
-                          {item.code}
+                          {item.sku || item.code}
                         </td>
                         <td className="py-3.5 px-4 font-bold text-slate-100">{item.name}</td>
-                        <td className="py-3.5 px-4 font-mono text-slate-400">{item.hsnCode || 'N/A'}</td>
+                        <td className="py-3.5 px-4 font-mono text-slate-400">{item.hsnSac || item.hsnCode || 'N/A'}</td>
                         <td className="py-3.5 px-4 font-mono text-slate-400 uppercase">{item.unit || 'PCS'}</td>
                         <td className="py-3.5 px-4 text-right font-extrabold text-slate-100">
                           {qty}{' '}

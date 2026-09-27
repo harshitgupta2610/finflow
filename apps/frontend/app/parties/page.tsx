@@ -121,7 +121,11 @@ export default function PartyMasterPage() {
   };
 
   const filteredParties = parties.filter((p) => {
-    const matchesType = filterType === 'ALL' || p.type === filterType;
+    const pType = (p.partyType || p.type || 'CUSTOMER').toUpperCase();
+    const matchesType =
+      filterType === 'ALL' ||
+      pType === filterType ||
+      pType === 'BOTH';
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.gstin && p.gstin.toLowerCase().includes(search.toLowerCase())) ||
@@ -234,12 +238,14 @@ export default function PartyMasterPage() {
                       <td className="py-3">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            party.type === 'CUSTOMER'
+                            (party.partyType || party.type) === 'CUSTOMER'
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                              : (party.partyType || party.type) === 'SUPPLIER'
+                              ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                           }`}
                         >
-                          {party.type}
+                          {party.partyType || party.type || 'CUSTOMER'}
                         </span>
                       </td>
                       <td className="py-3 font-mono text-[11px]">

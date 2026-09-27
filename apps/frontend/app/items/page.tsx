@@ -126,8 +126,10 @@ export default function ItemMasterPage() {
     const matchesCat = selectedCategory === 'ALL' || itemCat === selectedCategory;
     const matchesSearch =
       item.name.toLowerCase().includes(search.toLowerCase()) ||
-      (item.code && item.code.toLowerCase().includes(search.toLowerCase())) ||
-      (item.hsnCode && item.hsnCode.includes(search));
+      ((item.sku || item.code || '')
+        .toLowerCase()
+        .includes(search.toLowerCase())) ||
+      ((item.hsnSac || item.hsnCode || '').includes(search));
     return matchesCat && matchesSearch;
   });
 
