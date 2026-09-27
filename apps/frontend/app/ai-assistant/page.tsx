@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api, getActiveCompanyId } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
+import { MarkdownRenderer } from '../../components/MarkdownRenderer';
 import {
   Bot,
   Sparkles,
@@ -267,9 +268,10 @@ export default function AIAssistantPage() {
                       {msg.timestamp && <span className="font-mono text-[9px]">{msg.timestamp}</span>}
                     </div>
 
-                    <div className="prose prose-invert prose-xs max-w-none whitespace-pre-wrap leading-relaxed font-sans text-slate-200 [&_table]:border-collapse [&_table]:w-full [&_table]:my-2 [&_th]:border [&_th]:border-slate-800 [&_th]:p-1.5 [&_th]:bg-slate-900 [&_th]:text-left [&_td]:border [&_td]:border-slate-800/60 [&_td]:p-1.5 [&_strong]:text-slate-100 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4">
-                      {msg.content}
-                    </div>
+                    <MarkdownRenderer
+                      content={msg.content}
+                      className={msg.role === 'user' ? 'text-white [&_strong]:text-white [&_p]:text-white' : ''}
+                    />
                   </div>
                 </div>
               ))}
