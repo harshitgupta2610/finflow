@@ -53,6 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(res.data.user);
         if (res.data.user?.company?.id) {
           setSelectedCompanyId(res.data.user.company.id);
+          localStorage.setItem('finflow_company_id', res.data.user.company.id);
+        }
+        if (res.data.user?.company?.activeFinancialYearId) {
+          localStorage.setItem(
+            'finflow_financial_year_id',
+            res.data.user.company.activeFinancialYearId,
+          );
         }
       } catch (err) {
         localStorage.removeItem('finflow_access_token');
@@ -70,6 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData);
     if (userData.company?.id) {
       setSelectedCompanyId(userData.company.id);
+      localStorage.setItem('finflow_company_id', userData.company.id);
+    }
+    if (userData.company?.activeFinancialYearId) {
+      localStorage.setItem(
+        'finflow_financial_year_id',
+        userData.company.activeFinancialYearId,
+      );
     }
     router.push('/');
   };
@@ -77,6 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem('finflow_access_token');
     localStorage.removeItem('finflow_refresh_token');
+    localStorage.removeItem('finflow_company_id');
+    localStorage.removeItem('finflow_financial_year_id');
     setUser(null);
     router.push('/login');
   };

@@ -27,7 +27,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: {
-        organization: true,
+        organization: {
+          include: {
+            companies: {
+              include: {
+                financialYears: true,
+              },
+            },
+          },
+        },
         userRoles: {
           include: {
             role: {
@@ -59,12 +67,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       });
     });
 
+    const activeCompany = user.organization?.companies?.[0] || null;
+
     return {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       organizationId: user.organizationId,
+      organizationName: user.organization?.name,
+      company: activeCompany
+        ? {
+            id: activeCompany.id,
+            legalName: activeCompany.legalName,
+            displayName: activeCompany.displayName,
+            activeFinancialYearId:
+              activeCompany.activeFinancialYearId || activeCompany.financialYears?.[0]?.id,
+          }
+        : null,
       roles,
       permissions: Array.from(permissions),
     };

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Header } from '../../../components/Header';
 import { Sidebar } from '../../../components/Sidebar';
-import { useAuth } from '../../../lib/auth-context';
 import { api } from '../../../lib/api';
 import {
   FileText,
@@ -14,25 +15,102 @@ import {
   ArrowRight,
   Save,
   RotateCcw,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function NewVoucherPage() {
-  const { selectedCompanyId } = useAuth();
+  const router = useRouter();
   const [voucherType, setVoucherType] = useState('JOURNAL');
   const [voucherNumber, setVoucherNumber] = useState(`VOUCH-${Date.now().toString().slice(-6)}`);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [narration, setNarration] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [lines, setLines] = useState([
-    { accountId: 'acc-cash', accountName: 'Main Cash Account', code: 'CASH_PRIMARY', debit: '5000.00', credit: '0.00' },
-    { accountId: 'acc-sales', accountName: 'Sales Account (Domestic)', code: 'SALES_GEN', debit: '0.00', credit: '5000.00' },
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [financialYearId, setFinancialYearId] = useState<string>('');
+
+  const [lines, setLines] = useState<Array<{ accountId: string; debit: string; credit: string }>>([
+    { accountId: '', debit: '0.00', credit: '0.00' },
+    { accountId: '', debit: '0.00', credit: '0.00' },
   ]);
 
+  useEffect(() => {
+    fetchMasterData();
+  }, []);
+
+  const fetchMasterData = async () => {
+    try {
+      setInitialLoading(true);
+      let companyId = localStorage.getItem('finflow_company_id');
+
+      // If companyId is not in localStorage yet, fetch from /auth/me
+      if (!companyId) {
+        const meRes = await api.get('/auth/me');
+        if (meRes.data?.user?.company?.id) {
+          companyId = meRes.data.user.company.id;
+          localStorage.setItem('finflow_company_id', companyId!);
+          if (meRes.data.user.company.activeFinancialYearId) {
+            localStorage.setItem(
+              'finflow_financial_year_id',
+              meRes.data.user.company.activeFinancialYearId,
+            );
+            setFinancialYearId(meRes.data.user.company.activeFinancialYearId);
+          }
+        }
+      }
+
+      if (!companyId) {
+        setErrorMessage('No active company found. Please log in again.');
+        return;
+      }
+
+      // Fetch financial years if not set
+      let storedFyId = localStorage.getItem('finflow_financial_year_id');
+      if (!storedFyId) {
+        const fyRes = await api.get('/financial-years', { params: { companyId } }).catch(() => null);
+        if (fyRes?.data && fyRes.data.length > 0) {
+          const currentFy = fyRes.data.find((f: any) => f.isCurrent) || fyRes.data[0];
+          storedFyId = currentFy.id;
+          localStorage.setItem('finflow_financial_year_id', currentFy.id);
+        }
+      }
+      if (storedFyId) {
+        setFinancialYearId(storedFyId);
+      }
+
+      // Fetch chart of accounts
+      let accRes = await api.get('/accounts', { params: { companyId } });
+      let loadedAccounts = accRes.data || [];
+
+      // If company has no accounts yet, seed defaults
+      if (loadedAccounts.length === 0) {
+        await api.post('/accounts/seed-defaults', { companyId }).catch(() => null);
+        const retryRes = await api.get('/accounts', { params: { companyId } });
+        loadedAccounts = retryRes.data || [];
+      }
+
+      setAccounts(loadedAccounts);
+
+      // Pre-populate with first two accounts
+      if (loadedAccounts.length >= 2) {
+        setLines([
+          { accountId: loadedAccounts[0].id, debit: '1000.00', credit: '0.00' },
+          { accountId: loadedAccounts[1].id, debit: '0.00', credit: '1000.00' },
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to load voucher master data', err);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
   const addLine = () => {
-    setLines([...lines, { accountId: '', accountName: 'Select Ledger Account', code: '', debit: '0.00', credit: '0.00' }]);
+    const defaultAccId = accounts.length > 0 ? accounts[0].id : '';
+    setLines([...lines, { accountId: defaultAccId, debit: '0.00', credit: '0.00' }]);
   };
 
   const removeLine = (index: number) => {
@@ -40,9 +118,9 @@ export default function NewVoucherPage() {
     setLines(lines.filter((_, i) => i !== index));
   };
 
-  const updateLine = (index: number, field: string, value: string) => {
+  const updateLine = (index: number, field: 'accountId' | 'debit' | 'credit', value: string) => {
     const updated = [...lines];
-    (updated[index] as any)[field] = value;
+    updated[index][field] = value;
     setLines(updated);
   };
 
@@ -51,36 +129,56 @@ export default function NewVoucherPage() {
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.001 && totalDebit > 0;
 
   const handlePostVoucher = async () => {
-    if (!isBalanced) return;
+    if (!isBalanced) {
+      setErrorMessage('Total debits must equal total credits and be greater than 0.');
+      return;
+    }
+
+    const companyId = localStorage.getItem('finflow_company_id');
+    if (!companyId) {
+      setErrorMessage('Active company not found. Please re-login.');
+      return;
+    }
+
+    if (!financialYearId) {
+      setErrorMessage('Active financial year not found. Please select a financial year.');
+      return;
+    }
+
+    if (lines.some((l) => !l.accountId)) {
+      setErrorMessage('Please select a valid account ledger for all lines.');
+      return;
+    }
+
     setLoading(true);
     setSuccessMessage('');
     setErrorMessage('');
 
     try {
-      const companyId = selectedCompanyId || 'c0000000-0000-0000-0000-000000000001';
       const payload = {
         companyId,
-        financialYearId: 'fy-2024-25',
+        financialYearId,
         voucherType,
         voucherNumber,
         date,
-        narration,
+        narration: narration || `Voucher ${voucherNumber} (${voucherType})`,
         lines: lines.map((l) => ({
-          accountId: l.accountId.startsWith('acc-') ? 'c0000000-0000-0000-0000-000000000001' : l.accountId,
+          accountId: l.accountId,
           debit: parseFloat(l.debit) || 0,
           credit: parseFloat(l.credit) || 0,
         })),
       };
 
       await api.post('/vouchers', payload);
-      setSuccessMessage(`Voucher ${voucherNumber} posted & audited successfully in Neon Cloud DB!`);
-      setVoucherNumber(`VOUCH-${Date.now().toString().slice(-6)}`);
-      setNarration('');
+      setSuccessMessage(`Voucher ${voucherNumber} successfully posted and audited in Neon DB!`);
+      setTimeout(() => {
+        router.push('/vouchers');
+      }, 1500);
     } catch (err: any) {
-      // Mock successful UX response for demo company
-      setSuccessMessage(`Voucher ${voucherNumber} posted & audited successfully in Neon Cloud DB!`);
-      setVoucherNumber(`VOUCH-${Date.now().toString().slice(-6)}`);
-      setNarration('');
+      console.error('Failed to post voucher', err);
+      setErrorMessage(
+        err.response?.data?.message || 'Failed to post voucher. Please check balances and accounts.',
+      );
     } finally {
       setLoading(false);
     }
@@ -98,7 +196,7 @@ export default function NewVoucherPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isBalanced, loading]);
+  }, [isBalanced, loading, lines, voucherType, voucherNumber, date, narration, financialYearId]);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -109,14 +207,24 @@ export default function NewVoucherPage() {
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-brand-400" />
-                <h1 className="text-xl font-extrabold text-slate-100">Keyboard-Friendly Voucher Entry</h1>
+            <div className="flex items-center space-x-3">
+              <Link
+                href="/vouchers"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5 text-brand-400" />
+                  <h1 className="text-xl font-extrabold text-slate-100">
+                    Keyboard-Friendly Voucher Entry
+                  </h1>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Post transactionally balanced double-entry vouchers with real-time debit/credit validation.
+                </p>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Post transactionally balanced double-entry vouchers with real-time debit/credit validation.
-              </p>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -138,7 +246,17 @@ export default function NewVoucherPage() {
                 <CheckCircle2 className="h-5 w-5" />
                 <span>{successMessage}</span>
               </div>
-              <button onClick={() => setSuccessMessage('')} className="text-slate-400 hover:text-slate-200">
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+              <button onClick={() => setErrorMessage('')} className="text-slate-400 hover:text-slate-200">
                 Dismiss
               </button>
             </div>
@@ -151,16 +269,14 @@ export default function NewVoucherPage() {
               <select
                 value={voucherType}
                 onChange={(e) => setVoucherType(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-brand-500"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-semibold focus:outline-none focus:border-brand-500"
               >
-                <option value="SALES">SALES</option>
-                <option value="PURCHASE">PURCHASE</option>
-                <option value="RECEIPT">RECEIPT</option>
-                <option value="PAYMENT">PAYMENT</option>
-                <option value="JOURNAL">JOURNAL</option>
-                <option value="CONTRA">CONTRA</option>
-                <option value="DEBIT_NOTE">DEBIT NOTE</option>
-                <option value="CREDIT_NOTE">CREDIT NOTE</option>
+                <option value="JOURNAL">Journal Voucher</option>
+                <option value="SALES">Sales Voucher</option>
+                <option value="PURCHASE">Purchase Voucher</option>
+                <option value="RECEIPT">Receipt Voucher</option>
+                <option value="PAYMENT">Payment Voucher</option>
+                <option value="CONTRA">Contra (Bank / Cash)</option>
               </select>
             </div>
 
@@ -187,7 +303,7 @@ export default function NewVoucherPage() {
             <div>
               <label className="block text-slate-400 font-semibold mb-1">Financial Year</label>
               <div className="px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-slate-300 font-mono font-semibold">
-                FY 2024-25 (Current)
+                {financialYearId ? 'Active Period Set' : 'Loading FY...'}
               </div>
             </div>
           </div>
@@ -226,10 +342,12 @@ export default function NewVoucherPage() {
                           onChange={(e) => updateLine(idx, 'accountId', e.target.value)}
                           className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:border-brand-500"
                         >
-                          <option value="acc-cash">Main Cash Account (CASH_PRIMARY)</option>
-                          <option value="acc-sales">Sales Account (Domestic) (SALES_GEN)</option>
-                          <option value="acc-bank">HDFC Bank Primary A/c (BANK_HDFC_01)</option>
-                          <option value="acc-purch">Purchase Account (RM) (PURCH_RM)</option>
+                          <option value="">Select Account Ledger...</option>
+                          {accounts.map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.name} ({acc.code}) - {acc.accountGroup?.name || ''}
+                            </option>
+                          ))}
                         </select>
                       </td>
                       <td className="py-2.5 text-right">
@@ -253,7 +371,8 @@ export default function NewVoucherPage() {
                       <td className="py-2.5 text-center">
                         <button
                           onClick={() => removeLine(idx)}
-                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                          disabled={lines.length <= 2}
+                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors disabled:opacity-30"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -266,46 +385,46 @@ export default function NewVoucherPage() {
 
             {/* Narration Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Voucher Narration / Remarks</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1">
+                Voucher Narration / Remarks
+              </label>
               <textarea
                 rows={2}
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                placeholder="Enter transaction description or narration..."
+                placeholder="Enter description, purpose, or reference numbers for this financial entry..."
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-brand-500"
-              ></textarea>
+              />
             </div>
 
-            {/* Total Balance Status Bar */}
-            <div
-              className={`p-4 rounded-xl border flex items-center justify-between font-mono text-xs font-bold ${
-                isBalanced
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                {isBalanced ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                ) : (
-                  <AlertTriangle className="h-5 w-5 text-rose-400 animate-bounce" />
-                )}
-                <span>
-                  {isBalanced
-                    ? 'DOUBLE-ENTRY BALANCED: SUM(Debit) === SUM(Credit)'
-                    : `UNBALANCED ENTRY: Difference of ₹${Math.abs(totalDebit - totalCredit).toFixed(2)}`}
+            {/* Totals & Double Entry Validation Bar */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs">
+              <div className="flex items-center space-x-4">
+                <span className="text-slate-400">Total Debit:</span>
+                <span className="text-emerald-400 font-extrabold text-sm">
+                  ₹ {totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+                <span className="text-slate-600">|</span>
+                <span className="text-slate-400">Total Credit:</span>
+                <span className="text-indigo-400 font-extrabold text-sm">
+                  ₹ {totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
-              <div className="flex items-center space-x-6 text-sm">
-                <div>
-                  <span className="text-slate-400 text-xs mr-2">Total Debit:</span>
-                  <span>₹ {totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 text-xs mr-2">Total Credit:</span>
-                  <span>₹ {totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
+              <div>
+                {isBalanced ? (
+                  <div className="flex items-center space-x-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Double-Entry Balanced</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1.5 text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>
+                      Diff: ₹ {Math.abs(totalDebit - totalCredit).toFixed(2)} (Unbalanced)
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
