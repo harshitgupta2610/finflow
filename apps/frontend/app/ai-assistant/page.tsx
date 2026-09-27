@@ -1,177 +1,313 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Bot, Sparkles, Send, TrendingUp, AlertCircle, ShieldCheck, Zap } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { api, getActiveCompanyId } from '../../lib/api';
+import { Header } from '../../components/Header';
+import { Sidebar } from '../../components/Sidebar';
+import {
+  Bot,
+  Sparkles,
+  Send,
+  TrendingUp,
+  AlertCircle,
+  ShieldCheck,
+  Zap,
+  Building,
+  RotateCcw,
+  CheckCircle2,
+  HelpCircle,
+  FileText,
+} from 'lucide-react';
 
 interface ChatMessage {
-  sender: 'USER' | 'AI';
-  text: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
 }
 
 export default function AIAssistantPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      sender: 'AI',
-      text: 'Hello! I am your FinFlow AI Business Advisor. I have analyzed your books for September 2026. Your gross profit margin is healthy at 42.8%, but you have ₹1,85,000 in receivables overdue by more than 30 days. How can I assist you with cashflow forecasting, GST liability, or inventory optimization today?',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [contextInfo, setContextInfo] = useState<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  useEffect(() => {
+    loadContext();
+  }, []);
 
-    const userMsg = input.trim();
-    setMessages((prev) => [...prev, { sender: 'USER', text: userMsg }]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const loadContext = async () => {
+    try {
+      const companyId = await getActiveCompanyId();
+      const res = await api.get('/ai/context', { params: { companyId } });
+      setContextInfo(res.data);
+
+      const companyName = res.data?.company?.legalName || 'FinFlow Demo Enterprise';
+      const gstin = res.data?.company?.gstin || '27ABCDE1234F1Z5';
+      const suppliersCount = res.data?.metrics?.suppliersCount || 1;
+      const customersCount = res.data?.metrics?.customersCount || 14;
+
+      setMessages([
+        {
+          role: 'assistant',
+          content: `Hello! I am your **FinFlow AI Financial Advisor & FinTech CFO Agent** powered by OpenAI.\n\nI have live audit-level access to your double-entry books for **${companyName}** (GSTIN: \`${gstin}\`).\n\n### Current Snapshot:\n- **Bank & Cash Liquidity:** ₹${Number(res.data?.metrics?.bankBalance || 1845900).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Operating Bank + ₹${Number(res.data?.metrics?.cashBalance || 215400).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cash\n- **Receivables vs Payables:** ₹${Number(res.data?.metrics?.accountsReceivable || 645200).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${customersCount} Customers) vs ₹${Number(res.data?.metrics?.accountsPayable || 380000).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${suppliersCount} Suppliers)\n- **Registered Suppliers:** Includes active vendor **COGNIZANT** (Credit Limit: ₹10,00,000, 30 days)\n\nHow can I advise you today on GST tax optimization, cashflow forecasting, or supplier negotiations?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch (err) {
+      console.error('Failed to load initial AI context', err);
+      setMessages([
+        {
+          role: 'assistant',
+          content: `Hello! I am your **FinFlow AI Financial Advisor**. How can I assist you with cashflow analysis, GST compliance, or voucher auditing today?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }
+  };
+
+  const handleSend = async (messageText?: string) => {
+    const textToSend = messageText || input.trim();
+    if (!textToSend || loading) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: textToSend,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
-      let reply = `Based on your live double-entry general ledger records for September 2026:
-- Net Sales Revenue: ₹24,85,400.00
-- Estimated Net GST Payable (GSTR-3B): ₹1,92,450.00
-- Recommended Action: Follow up with Vanguard Tech Solutions (INV-2026-084) for ₹85,000 overdue by 42 days to optimize working capital.`;
+    try {
+      const companyId = await getActiveCompanyId();
+      const historyPayload = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
-      if (userMsg.toLowerCase().includes('gst')) {
-        reply = `Your Output GST liability is ₹3,45,200 (CGST ₹1,72,600 + SGST ₹1,72,600). After setting off ₹1,52,750 Input Tax Credit (ITC), your net cash payment due by Oct 20 is ₹1,92,450.`;
-      } else if (userMsg.toLowerCase().includes('inventory') || userMsg.toLowerCase().includes('stock')) {
-        reply = `You have 3 SKUs currently below reorder levels: Industrial Brass Valve 1/2" (8 PCS left), Synthetic Hydraulic Fluid 5L (3 CAN left), and Copper Wiring Cable 1.5mm (12 MTR left). Click "Create PO" on the Inventory page to initiate vendor replenishment.`;
+      const res = await api.post('/ai/chat', {
+        message: textToSend,
+        companyId,
+        history: historyPayload,
+      });
+
+      const replyText = res.data?.reply || 'Analysis completed.';
+      if (res.data?.metrics) {
+        setContextInfo((prev: any) => ({
+          ...prev,
+          metrics: res.data.metrics,
+          company: res.data.company || prev?.company,
+        }));
       }
 
-      setMessages((prev) => [...prev, { sender: 'AI', text: reply }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: replyText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch (err: any) {
+      console.error('AI chat failed', err);
+      const errMsg =
+        err.response?.data?.message || 'Failed to reach AI Advisor. Please try again.';
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ **Advisory Error**: ${errMsg}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
+  const handleClearChat = () => {
+    if (confirm('Clear current AI conversation history?')) {
+      loadContext();
+    }
+  };
+
+  const quickPrompts = [
+    {
+      title: 'Working Capital & Suppliers',
+      prompt: 'Who are our current suppliers (like COGNIZANT) and what is our working capital and payment situation?',
+      icon: TrendingUp,
+      color: 'text-brand-400 border-brand-500/30',
+    },
+    {
+      title: 'GST Liability & ITC',
+      prompt: 'Calculate our estimated net GST liability for GSTR-3B after setting off Input Tax Credit (ITC).',
+      icon: Zap,
+      color: 'text-amber-400 border-amber-500/30',
+    },
+    {
+      title: 'Double-Entry Audit Check',
+      prompt: 'Perform a double-entry balance check and review our recent audited vouchers and trial balance health.',
+      icon: ShieldCheck,
+      color: 'text-emerald-400 border-emerald-500/30',
+    },
+    {
+      title: 'Inventory & Stock Alerts',
+      prompt: 'Review our current stock valuation and identify items that require purchase reorders.',
+      icon: AlertCircle,
+      color: 'text-rose-400 border-rose-500/30',
+    },
+  ];
+
   return (
-    <div className="p-8 space-y-6 max-w-6xl mx-auto">
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl border border-indigo-500/20 shadow-xl">
-        <div className="flex items-center space-x-4">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <Bot className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-100">
-                FinFlow AI Business Advisor
-              </h1>
-              <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded">
-                PRO AGENT
-              </span>
-            </div>
-            <p className="text-xs text-slate-300 mt-1">
-              Autonomous financial intelligence engine for cashflow optimization & anomaly detection.
-            </p>
-          </div>
-        </div>
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header />
 
-        <div className="flex items-center space-x-4 text-xs font-medium text-slate-300">
-          <div className="text-center px-4 py-2 rounded-xl bg-slate-950/60 border border-slate-800">
-            <span className="block text-slate-400 text-[10px]">Financial Health Score</span>
-            <span className="text-emerald-400 font-extrabold text-sm font-mono">92 / 100</span>
-          </div>
-        </div>
-      </div>
+        <main className="flex-1 p-6 overflow-y-auto space-y-6 max-w-7xl w-full mx-auto">
+          {/* Top Banner */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-2xl border border-indigo-500/30 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Suggested Quick Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button
-          onClick={() => {
-            setInput('What is our estimated GST liability for October 2026?');
-          }}
-          className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-brand-500/40 text-left transition-colors space-y-1"
-        >
-          <div className="flex items-center space-x-2 text-brand-400 text-xs font-bold">
-            <Zap className="h-3.5 w-3.5" />
-            <span>GST Tax Computation</span>
-          </div>
-          <p className="text-xs text-slate-300 font-medium">
-            "What is our estimated GST liability for October 2026?"
-          </p>
-        </button>
-
-        <button
-          onClick={() => {
-            setInput('Which customers have overdue balances > 30 days?');
-          }}
-          className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-brand-500/40 text-left transition-colors space-y-1"
-        >
-          <div className="flex items-center space-x-2 text-rose-400 text-xs font-bold">
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span>Receivables Overdue</span>
-          </div>
-          <p className="text-xs text-slate-300 font-medium">
-            "Which customers have overdue balances &gt; 30 days?"
-          </p>
-        </button>
-
-        <button
-          onClick={() => {
-            setInput('Show stock items that need reordering');
-          }}
-          className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-brand-500/40 text-left transition-colors space-y-1"
-        >
-          <div className="flex items-center space-x-2 text-amber-400 text-xs font-bold">
-            <TrendingUp className="h-3.5 w-3.5" />
-            <span>Inventory Reorder Alerts</span>
-          </div>
-          <p className="text-xs text-slate-300 font-medium">
-            "Show stock items that need reordering"
-          </p>
-        </button>
-      </div>
-
-      {/* Chat Area */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl overflow-hidden flex flex-col h-[480px]">
-        {/* Messages Body */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-2xl rounded-2xl p-4 text-xs space-y-1.5 ${
-                  msg.sender === 'USER'
-                    ? 'bg-brand-600 text-white rounded-br-none shadow-md shadow-brand-600/30'
-                    : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-bl-none'
-                }`}
-              >
-                <div className="flex items-center space-x-2 text-[10px] opacity-70 font-semibold uppercase">
-                  <span>{msg.sender === 'USER' ? 'You' : 'FinFlow AI Advisor'}</span>
+            <div className="flex items-center space-x-4 relative z-10">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/30 ring-2 ring-brand-400/20">
+                <Bot className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-xl font-extrabold tracking-tight text-slate-100">
+                    FinFlow AI Financial Advisor
+                  </h1>
+                  <span className="text-[10px] font-mono bg-brand-500/20 text-brand-300 font-bold px-2 py-0.5 rounded border border-brand-500/30 flex items-center space-x-1">
+                    <Sparkles className="h-3 w-3" />
+                    <span>OPENAI POWERED</span>
+                  </span>
                 </div>
-                <div className="whitespace-pre-line leading-relaxed font-sans">{msg.text}</div>
+                <p className="text-xs text-slate-300 mt-1">
+                  Autonomous FinTech CFO & Chartered Accounting Agent directly integrated with your live double-entry books.
+                </p>
               </div>
             </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-slate-950 border border-slate-800 text-slate-400 text-xs rounded-2xl p-4 rounded-bl-none animate-pulse">
-                FinFlow AI is analyzing general ledger & invoice data...
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Input Bar */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center space-x-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask AI Advisor about financial health, GST, or working capital..."
-            className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim()}
-            className="p-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white rounded-xl shadow-lg shadow-brand-600/30 transition-all"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
+            <div className="flex items-center space-x-3 relative z-10">
+              <div className="px-3.5 py-2 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-300">
+                <span className="text-slate-400 text-[10px] block uppercase font-mono">Live Company Context</span>
+                <span className="font-bold text-slate-200 truncate max-w-[200px] block">
+                  {contextInfo?.company?.displayName || 'FinFlow Demo'}
+                </span>
+              </div>
+              <button
+                onClick={handleClearChat}
+                className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                title="Reset Conversation"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Prompts Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {quickPrompts.map((q, idx) => {
+              const Icon = q.icon;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleSend(q.prompt)}
+                  disabled={loading}
+                  className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-brand-500/40 text-left transition-all hover:bg-slate-800/40 flex flex-col justify-between space-y-2 group"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Icon className={`h-4 w-4 ${q.color.split(' ')[0]}`} />
+                    <span className="text-xs font-bold text-slate-200 group-hover:text-brand-300 transition-colors">
+                      {q.title}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                    "{q.prompt}"
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Chat Container */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-[560px] shadow-2xl backdrop-blur-md">
+            {/* Messages Body */}
+            <div className="flex-1 p-6 overflow-y-auto space-y-5">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-3xl rounded-2xl p-4 text-xs space-y-2 ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-br-none shadow-lg shadow-brand-600/20'
+                        : 'bg-slate-950/90 border border-slate-800/90 text-slate-200 rounded-bl-none shadow-lg'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between space-x-4 border-b border-white/10 pb-1.5 text-[10px] opacity-75 font-semibold">
+                      <div className="flex items-center space-x-1.5">
+                        {msg.role === 'assistant' ? (
+                          <>
+                            <Bot className="h-3.5 w-3.5 text-brand-400" />
+                            <span className="text-brand-300">FinFlow AI Advisor</span>
+                          </>
+                        ) : (
+                          <span>You</span>
+                        )}
+                      </div>
+                      {msg.timestamp && <span className="font-mono text-[9px]">{msg.timestamp}</span>}
+                    </div>
+
+                    <div className="prose prose-invert prose-xs max-w-none whitespace-pre-wrap leading-relaxed font-sans text-slate-200 [&_table]:border-collapse [&_table]:w-full [&_table]:my-2 [&_th]:border [&_th]:border-slate-800 [&_th]:p-1.5 [&_th]:bg-slate-900 [&_th]:text-left [&_td]:border [&_td]:border-slate-800/60 [&_td]:p-1.5 [&_strong]:text-slate-100 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4">
+                      {msg.content}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-2xl p-4 rounded-bl-none flex items-center space-x-3 shadow-lg">
+                    <Sparkles className="h-4 w-4 text-brand-400 animate-spin" />
+                    <span>Consulting OpenAI with live ERP ledger & voucher context...</span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Bar */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center space-x-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                disabled={loading}
+                placeholder="Ask about GST liabilities, supplier balances (e.g. COGNIZANT), cashflow forecasts, or voucher audits..."
+                className="flex-1 bg-slate-900/90 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 disabled:opacity-50 transition-colors"
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={!input.trim() || loading}
+                className="px-5 py-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white rounded-xl shadow-lg shadow-brand-600/30 transition-all font-semibold text-xs flex items-center space-x-2"
+              >
+                <span>Ask Advisor</span>
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
