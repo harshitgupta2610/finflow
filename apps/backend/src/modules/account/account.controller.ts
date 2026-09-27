@@ -21,34 +21,48 @@ export class AccountController {
 
   @Get('groups')
   @ApiOperation({ summary: 'Get hierarchical tree of account groups & ledgers' })
-  async getAccountGroupTree(@Query('companyId') companyId: string) {
-    return this.accountService.getAccountGroupTree(companyId);
+  async getAccountGroupTree(
+    @Query('companyId') companyId?: string,
+    @CurrentUser('company') userCompany?: any,
+  ) {
+    const activeCompId = companyId || userCompany?.id || 'c0000000-0000-0000-0000-000000000001';
+    return this.accountService.getAccountGroupTree(activeCompId);
   }
 
   @Post('groups')
   @ApiOperation({ summary: 'Create new account group' })
   async createAccountGroup(
     @CurrentUser('id') userId: string,
+    @CurrentUser('company') userCompany: any,
     @Body() dto: CreateAccountGroupDto,
   ) {
+    if (!dto.companyId && userCompany?.id) {
+      dto.companyId = userCompany.id;
+    }
     return this.accountService.createAccountGroup(userId, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all ledger accounts' })
   async getAccounts(
-    @Query('companyId') companyId: string,
+    @Query('companyId') companyId?: string,
+    @CurrentUser('company') userCompany?: any,
     @Query('category') category?: AccountCategory,
   ) {
-    return this.accountService.getAccounts(companyId, category);
+    const activeCompId = companyId || userCompany?.id || 'c0000000-0000-0000-0000-000000000001';
+    return this.accountService.getAccounts(activeCompId, category);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create new ledger account' })
   async createAccount(
     @CurrentUser('id') userId: string,
+    @CurrentUser('company') userCompany: any,
     @Body() dto: CreateAccountDto,
   ) {
+    if (!dto.companyId && userCompany?.id) {
+      dto.companyId = userCompany.id;
+    }
     return this.accountService.createAccount(userId, dto);
   }
 

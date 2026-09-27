@@ -45,10 +45,10 @@ export class CreateAccountDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'BANK_HDFC_01' })
+  @ApiProperty({ example: 'BANK_HDFC_01', required: false })
   @IsString()
-  @IsNotEmpty()
-  code: string;
+  @IsOptional()
+  code?: string;
 
   @ApiProperty({ example: 150000.00, required: false })
   @IsNumber()

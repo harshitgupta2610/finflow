@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../lib/auth-context';
 import { Header } from '../components/Header';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardMetrics } from '../components/DashboardMetrics';
@@ -15,6 +16,28 @@ import { Plus } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('finflow_access_token');
+      if (!token) {
+        router.replace('/login');
+        return;
+      }
+      setCheckingAuth(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!loading && !user && typeof window !== 'undefined') {
+      const token = localStorage.getItem('finflow_access_token');
+      if (!token) {
+        router.replace('/login');
+      }
+    }
+  }, [loading, user, router]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -30,6 +53,17 @@ export default function DashboardPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [router]);
+
+  if (checkingAuth || loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
+        <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center font-extrabold text-white text-xl shadow-lg shadow-brand-500/30 animate-pulse">
+          FF
+        </div>
+        <div className="text-xs text-slate-400">Verifying FinFlow session...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">

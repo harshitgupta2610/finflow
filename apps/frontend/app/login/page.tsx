@@ -1,17 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { api } from '../../lib/api';
 import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
+  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('admin@finflow.com');
   const [password, setPassword] = useState('Admin@123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('finflow_access_token');
+      if (token && token.length > 10) {
+        router.replace('/');
+      }
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

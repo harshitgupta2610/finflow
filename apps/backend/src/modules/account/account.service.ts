@@ -222,7 +222,7 @@ export class AccountService {
   }
 
   async getAccountGroupTree(companyId: string) {
-    const groups = await this.prisma.accountGroup.findMany({
+    let groups = await this.prisma.accountGroup.findMany({
       where: { companyId },
       include: {
         accounts: true,
@@ -234,6 +234,23 @@ export class AccountService {
       },
       orderBy: { code: 'asc' },
     });
+
+    if (groups.length === 0) {
+      await this.seedDefaultChartOfAccounts(companyId);
+      groups = await this.prisma.accountGroup.findMany({
+        where: { companyId },
+        include: {
+          accounts: true,
+          children: {
+            include: {
+              accounts: true,
+            },
+          },
+        },
+        orderBy: { code: 'asc' },
+      });
+    }
+
     return groups;
   }
 
@@ -300,14 +317,27 @@ export class AccountService {
   }
 
   async createAccount(userId: string, dto: CreateAccountDto) {
+    const rawDto: any = dto;
+    let code = (dto.code || rawDto.code || '').trim().toUpperCase();
+    if (!code) {
+      code =
+        dto.name
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, '_')
+          .replace(/_+/g, '_')
+          .slice(0, 16) +
+        '_' +
+        Math.floor(100 + Math.random() * 900);
+    }
+
     const existing = await this.prisma.account.findUnique({
       where: {
-        companyId_code: { companyId: dto.companyId, code: dto.code },
+        companyId_code: { companyId: dto.companyId, code },
       },
     });
 
     if (existing) {
-      throw new BadRequestException(`Account ledger code '${dto.code}' already exists`);
+      code = `${code}_${Math.floor(100 + Math.random() * 900)}`;
     }
 
     const account = await this.prisma.account.create({
@@ -315,8 +345,8 @@ export class AccountService {
         companyId: dto.companyId,
         accountGroupId: dto.accountGroupId,
         name: dto.name,
-        code: dto.code,
-        openingBalance: dto.openingBalance ?? 0.00,
+        code,
+        openingBalance: dto.openingBalance ?? 0.0,
         openingBalanceType: dto.openingBalanceType ?? BalanceType.DEBIT,
         isActive: dto.isActive ?? true,
       },
