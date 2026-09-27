@@ -4,6 +4,7 @@ import { CreateVoucherDto } from './dto/voucher.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { VoucherType, VoucherStatus } from '@prisma/client';
 
 @ApiTags('Accounting & Vouchers Engine')
 @ApiBearerAuth()
@@ -11,6 +12,17 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 @Controller()
 export class AccountingController {
   constructor(private readonly accountingService: AccountingService) {}
+
+  @Get('vouchers')
+  @ApiOperation({ summary: 'Get all audited vouchers for company' })
+  async findAllVouchers(
+    @Query('companyId') companyId: string,
+    @Query('type') type?: VoucherType,
+    @Query('status') status?: VoucherStatus,
+    @Query('limit') limit?: string,
+  ) {
+    return this.accountingService.findAllVouchers(companyId, type, status, limit ? parseInt(limit, 10) : 50);
+  }
 
   @Post('vouchers')
   @ApiOperation({ summary: 'Create & post a balanced double-entry voucher' })

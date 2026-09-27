@@ -11,11 +11,14 @@ import {
   Save,
   ShieldCheck,
   CreditCard,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [companyName, setCompanyName] = useState('FinFlow Enterprise Ltd');
   const [gstin, setGstin] = useState('27AABCF1234H1Z5');
@@ -24,13 +27,58 @@ export default function SettingsPage() {
   const [state, setState] = useState('Maharashtra');
   const [financialYear, setFinancialYear] = useState('FY 2026-27');
 
-  const handleSave = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+  useEffect(() => {
+    fetchCompany();
+  }, []);
+
+  const fetchCompany = async () => {
+    try {
+      setInitialLoading(true);
+      const companyId = localStorage.getItem('finflow_company_id');
+      if (!companyId) return;
+
+      const res = await api.get(`/companies/${companyId}`);
+      if (res.data) {
+        setCompanyName(res.data.legalName || res.data.displayName || 'FinFlow Enterprise Ltd');
+        if (res.data.gstin) setGstin(res.data.gstin);
+        if (res.data.pan) setPan(res.data.pan);
+        if (res.data.address) setAddress(res.data.address);
+        if (res.data.state) setState(res.data.state);
+      }
+    } catch (err) {
+      console.error('Failed to load company details', err);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const companyId = localStorage.getItem('finflow_company_id');
+      if (!companyId) {
+        setError('No active company selected');
+        return;
+      }
+
+      await api.put(`/companies/${companyId}`, {
+        legalName: companyName,
+        displayName: companyName,
+        gstin,
+        pan,
+        address,
+        state,
+      });
+
       setSuccess('Company configuration & tax settings updated successfully!');
       setTimeout(() => setSuccess(null), 4000);
-    }, 800);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to update company settings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,7 +96,7 @@ export default function SettingsPage() {
 
         <button
           onClick={handleSave}
-          disabled={loading}
+          disabled={loading || initialLoading}
           className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-lg text-xs font-medium shadow-lg shadow-brand-600/30 transition-all disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
@@ -60,6 +108,12 @@ export default function SettingsPage() {
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium rounded-lg flex items-center space-x-2">
           <CheckCircle2 className="h-4 w-4" />
           <span>{success}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-lg">
+          {error}
         </div>
       )}
 
@@ -90,7 +144,7 @@ export default function SettingsPage() {
             <input
               type="text"
               value={gstin}
-              onChange={(e) => setGstin(e.target.value)}
+              onChange={(e) => setGstin(e.target.value.toUpperCase())}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-brand-500"
             />
           </div>
@@ -102,14 +156,14 @@ export default function SettingsPage() {
             <input
               type="text"
               value={pan}
-              onChange={(e) => setPan(e.target.value)}
+              onChange={(e) => setPan(e.target.value.toUpperCase())}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-brand-500"
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">
-              State / Location
+              State / Jurisdiction
             </label>
             <input
               type="text"

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
 import {
@@ -14,23 +15,98 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Scale,
+  RefreshCw,
 } from 'lucide-react';
 
-const mockTrialBalance = [
-  { code: 'CASH_PRIMARY', name: 'Main Cash Account', group: 'Cash-in-Hand', category: 'ASSET', debit: '₹ 10,000.00', credit: '₹ 0.00' },
-  { code: 'BANK_HDFC_01', name: 'HDFC Bank Primary A/c', group: 'Bank Accounts', category: 'ASSET', debit: '₹ 12,45,000.00', credit: '₹ 0.00' },
-  { code: 'PARTY_CUST_01', name: 'Apex Trading Co', group: 'Accounts Receivable', category: 'ASSET', debit: '₹ 1,85,000.00', credit: '₹ 0.00' },
-  { code: 'PARTY_SUPP_01', name: 'Mahalaxmi Steel', group: 'Accounts Payable', category: 'LIABILITY', debit: '₹ 0.00', credit: '₹ 2,20,000.00' },
-  { code: 'GST_CGST_OUT', name: 'Output CGST 9%', group: 'GST Payable', category: 'LIABILITY', debit: '₹ 0.00', credit: '₹ 96,225.00' },
-  { code: 'GST_SGST_OUT', name: 'Output SGST 9%', group: 'GST Payable', category: 'LIABILITY', debit: '₹ 0.00', credit: '₹ 96,225.00' },
-  { code: 'SALES_18', name: 'Sales Account (Domestic)', group: 'Sales Accounts', category: 'INCOME', debit: '₹ 0.00', credit: '₹ 24,85,400.00' },
-  { code: 'PURCH_RM', name: 'Purchase Account (Raw Material)', group: 'Purchase Accounts', category: 'EXPENSE', debit: '₹ 14,25,050.00', credit: '₹ 0.00' },
-  { code: 'EXP_RENT', name: 'Office Rent Expense', group: 'Indirect Expenses', category: 'EXPENSE', debit: '₹ 75,000.00', credit: '₹ 0.00' },
-  { code: 'EXP_SALARY', name: 'Staff Salaries', group: 'Indirect Expenses', category: 'EXPENSE', debit: '₹ 3,57,800.00', credit: '₹ 0.00' },
-];
-
 export default function ReportsPage() {
-  const [activeTab, setActiveTab] = useState('TB'); // TB, PL, BS, LEDGER
+  const [activeTab, setActiveTab] = useState<'TB' | 'PL' | 'BS' | 'LEDGER'>('TB');
+  const [loading, setLoading] = useState(false);
+
+  // Live report data
+  const [trialBalance, setTrialBalance] = useState<any>(null);
+  const [profitLoss, setProfitLoss] = useState<any>(null);
+  const [balanceSheet, setBalanceSheet] = useState<any>(null);
+
+  // Ledger state
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [ledgerData, setLedgerData] = useState<any>(null);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const companyId = localStorage.getItem('finflow_company_id');
+      if (!companyId) return;
+
+      const [tbRes, plRes, bsRes, accRes] = await Promise.all([
+        api.get('/reports/trial-balance', { params: { companyId } }).catch(() => null),
+        api.get('/reports/profit-loss', { params: { companyId } }).catch(() => null),
+        api.get('/reports/balance-sheet', { params: { companyId } }).catch(() => null),
+        api.get('/accounts', { params: { companyId } }).catch(() => null),
+      ]);
+
+      if (tbRes?.data) setTrialBalance(tbRes.data);
+      if (plRes?.data) setProfitLoss(plRes.data);
+      if (bsRes?.data) setBalanceSheet(bsRes.data);
+      if (accRes?.data) {
+        setAccounts(accRes.data);
+        if (accRes.data.length > 0) {
+          setSelectedAccountId(accRes.data[0].id);
+          fetchLedger(accRes.data[0].id, companyId);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load financial reports', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchLedger = async (accountId: string, compId?: string) => {
+    try {
+      const companyId = compId || localStorage.getItem('finflow_company_id');
+      if (!companyId || !accountId) return;
+
+      const res = await api.get('/reports/ledger', {
+        params: { companyId, accountId },
+      });
+      setLedgerData(res.data);
+    } catch (err) {
+      console.error('Failed to load ledger', err);
+    }
+  };
+
+  const handleExportCSV = () => {
+    let csvContent = 'data:text/csv;charset=utf-8,';
+    if (activeTab === 'TB' && trialBalance?.rows) {
+      csvContent += 'Account Code,Account Name,Account Group,Category,Debit,Credit\n';
+      trialBalance.rows.forEach((r: any) => {
+        csvContent += `"${r.code}","${r.name}","${r.group}","${r.category}",${r.debit},${r.credit}\n`;
+      });
+    } else {
+      csvContent += 'Report,Date,Status\nFinFlow Financial Report,2026-09-27,Audited\n';
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `FinFlow_${activeTab}_Report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const tbRows = trialBalance?.rows || [];
+  const grandTotalDebit = trialBalance?.grandTotalDebit || 0;
+  const grandTotalCredit = trialBalance?.grandTotalCredit || 0;
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -52,11 +128,24 @@ export default function ReportsPage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <button className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700">
+              <button
+                onClick={fetchInitialData}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Refresh Data</span>
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700"
+              >
                 <Download className="h-4 w-4" />
                 <span>Export CSV / Excel</span>
               </button>
-              <button className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700">
+              <button
+                onClick={handlePrint}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700"
+              >
                 <Printer className="h-4 w-4" />
                 <span>Print PDF</span>
               </button>
@@ -73,7 +162,7 @@ export default function ReportsPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                   activeTab === tab.id
                     ? 'bg-brand-600 text-white shadow-md'
@@ -91,7 +180,9 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div>
                   <h3 className="text-sm font-bold text-slate-100">Trial Balance Statement</h3>
-                  <p className="text-xs text-slate-400">As of September 27, 2026 • Financial Year 2024-25</p>
+                  <p className="text-xs text-slate-400">
+                    Live General Ledger Balances • Double-Entry Audited
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20 text-xs font-bold">
                   <CheckCircle2 className="h-4 w-4" />
@@ -111,21 +202,37 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-mono">
-                    {mockTrialBalance.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="py-2.5 text-slate-400 font-bold">{row.code}</td>
-                        <td className="py-2.5 font-sans font-semibold text-slate-200">{row.name}</td>
-                        <td className="py-2.5 font-sans text-slate-400">{row.group}</td>
-                        <td className="py-2.5 text-right font-bold text-slate-100">{row.debit}</td>
-                        <td className="py-2.5 text-right font-bold text-slate-100">{row.credit}</td>
+                    {tbRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-6 text-slate-500 font-sans">
+                          {loading ? 'Computing Trial Balance...' : 'No accounts available.'}
+                        </td>
                       </tr>
-                    ))}
+                    ) : (
+                      tbRows.map((row: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="py-2.5 text-slate-400 font-bold">{row.code}</td>
+                          <td className="py-2.5 font-sans font-semibold text-slate-200">{row.name}</td>
+                          <td className="py-2.5 font-sans text-slate-400">{row.group}</td>
+                          <td className="py-2.5 text-right font-bold text-slate-100">
+                            ₹{Number(row.debit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2.5 text-right font-bold text-slate-100">
+                            ₹{Number(row.credit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                     <tr className="border-t-2 border-slate-700 bg-slate-950 font-extrabold text-sm">
                       <td colSpan={3} className="py-3 font-sans text-slate-100">
                         GRAND TOTAL
                       </td>
-                      <td className="py-3 text-right text-emerald-400">₹ 28,97,850.00</td>
-                      <td className="py-3 text-right text-emerald-400">₹ 28,97,850.00</td>
+                      <td className="py-3 text-right text-emerald-400 font-mono">
+                        ₹{grandTotalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3 text-right text-emerald-400 font-mono">
+                        ₹{grandTotalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -143,16 +250,26 @@ export default function ReportsPage() {
                     <ArrowUpRight className="h-4 w-4" />
                     <span>INCOME & REVENUE</span>
                   </h3>
-                  <span className="text-xs font-mono font-extrabold text-emerald-400">₹ 24,85,400.00</span>
+                  <span className="text-xs font-mono font-extrabold text-emerald-400">
+                    ₹{Number(profitLoss?.totalIncome || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-200">Sales Account (Domestic GST 18%)</div>
-                      <div className="text-[10px] text-slate-500 font-mono">SALES_18</div>
-                    </div>
-                    <span className="font-mono font-bold text-slate-100">₹ 24,85,400.00</span>
-                  </div>
+                  {profitLoss?.incomeList?.length > 0 ? (
+                    profitLoss.incomeList.map((inc: any, i: number) => (
+                      <div key={i} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-slate-200">{inc.name}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{inc.code}</div>
+                        </div>
+                        <span className="font-mono font-bold text-slate-100">
+                          ₹{Number(inc.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 py-4 text-center">No income records yet.</div>
+                  )}
                 </div>
               </div>
 
@@ -163,36 +280,34 @@ export default function ReportsPage() {
                     <ArrowDownRight className="h-4 w-4" />
                     <span>EXPENSES</span>
                   </h3>
-                  <span className="text-xs font-mono font-extrabold text-indigo-400">₹ 18,57,850.00</span>
+                  <span className="text-xs font-mono font-extrabold text-indigo-400">
+                    ₹{Number(profitLoss?.totalExpense || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-200">Purchase Account (Raw Material)</div>
-                      <div className="text-[10px] text-slate-500 font-mono">PURCH_RM</div>
-                    </div>
-                    <span className="font-mono font-bold text-slate-100">₹ 14,25,050.00</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-200">Staff Salaries</div>
-                      <div className="text-[10px] text-slate-500 font-mono">EXP_SALARY</div>
-                    </div>
-                    <span className="font-mono font-bold text-slate-100">₹ 3,57,800.00</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-200">Office Rent Expense</div>
-                      <div className="text-[10px] text-slate-500 font-mono">EXP_RENT</div>
-                    </div>
-                    <span className="font-mono font-bold text-slate-100">₹ 75,000.00</span>
-                  </div>
+                  {profitLoss?.expenseList?.length > 0 ? (
+                    profitLoss.expenseList.map((exp: any, i: number) => (
+                      <div key={i} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-slate-200">{exp.name}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{exp.code}</div>
+                        </div>
+                        <span className="font-mono font-bold text-slate-100">
+                          ₹{Number(exp.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 py-4 text-center">No expense records yet.</div>
+                  )}
                 </div>
 
                 {/* Net Profit Bar */}
                 <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-between font-mono">
                   <span className="font-bold text-emerald-300">NET OPERATING PROFIT</span>
-                  <span className="text-base font-extrabold text-emerald-400">₹ 6,27,550.00</span>
+                  <span className="text-base font-extrabold text-emerald-400">
+                    ₹{Number(profitLoss?.netProfit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
               </div>
             </div>
@@ -204,43 +319,45 @@ export default function ReportsPage() {
               {/* Assets */}
               <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 glass-card space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                  <h3 className="text-sm font-bold text-brand-400">ASSETS</h3>
-                  <span className="text-xs font-mono font-extrabold text-brand-400">₹ 14,40,000.00</span>
+                  <h3 className="text-sm font-bold text-brand-400">TOTAL ASSETS</h3>
+                  <span className="text-xs font-mono font-extrabold text-brand-400">
+                    ₹{Number(balanceSheet?.totalAssets || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <span>HDFC Bank Primary A/c</span>
-                    <span className="font-mono font-bold">₹ 12,45,000.00</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <span>Apex Trading Co (Receivables)</span>
-                    <span className="font-mono font-bold">₹ 1,85,000.00</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <span>Main Cash Account</span>
-                    <span className="font-mono font-bold">₹ 10,000.00</span>
-                  </div>
+                  {balanceSheet?.assets?.map((a: any, i: number) => (
+                    <div key={i} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                      <span>{a.name}</span>
+                      <span className="font-mono font-bold">
+                        ₹{Number(a.debit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               {/* Liabilities & Retained Earnings */}
               <div className="p-5 rounded-xl bg-slate-900 border border-slate-800 glass-card space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                  <h3 className="text-sm font-bold text-purple-400">LIABILITIES & RETAINED EARNINGS</h3>
-                  <span className="text-xs font-mono font-extrabold text-purple-400">₹ 14,40,000.00</span>
+                  <h3 className="text-sm font-bold text-purple-400">LIABILITIES & EQUITY</h3>
+                  <span className="text-xs font-mono font-extrabold text-purple-400">
+                    ₹{Number(balanceSheet?.totalLiabilitiesAndEquity || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <span>Mahalaxmi Steel (Payables)</span>
-                    <span className="font-mono font-bold">₹ 2,20,000.00</span>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                    <span>Output CGST + SGST Payable</span>
-                    <span className="font-mono font-bold">₹ 1,92,450.00</span>
-                  </div>
+                  {balanceSheet?.liabilities?.map((l: any, i: number) => (
+                    <div key={i} className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                      <span>{l.name}</span>
+                      <span className="font-mono font-bold">
+                        ₹{Number(l.credit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))}
                   <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between font-semibold text-emerald-300">
-                    <span>Retained Earnings (Current Net Profit)</span>
-                    <span className="font-mono font-extrabold">₹ 6,27,550.00</span>
+                    <span>Retained Earnings (Operating Profit)</span>
+                    <span className="font-mono font-extrabold">
+                      ₹{Number(balanceSheet?.retainedEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -255,11 +372,19 @@ export default function ReportsPage() {
                   <h3 className="text-sm font-bold text-slate-100">Account Ledger Statement</h3>
                   <p className="text-xs text-slate-400">Detailed transaction statement with running debit/credit balance</p>
                 </div>
-                <select className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 font-bold focus:outline-none">
-                  <option>Apex Trading Co (PARTY_CUST_01)</option>
-                  <option>HDFC Bank Primary A/c (BANK_HDFC_01)</option>
-                  <option>Main Cash Account (CASH_PRIMARY)</option>
-                  <option>Sales Account (Domestic) (SALES_18)</option>
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => {
+                    setSelectedAccountId(e.target.value);
+                    fetchLedger(e.target.value);
+                  }}
+                  className="px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 font-bold focus:outline-none"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.code})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -273,37 +398,41 @@ export default function ReportsPage() {
                       <th className="pb-2">Narration / Particulars</th>
                       <th className="pb-2 text-right">Debit (₹)</th>
                       <th className="pb-2 text-right">Credit (₹)</th>
-                      <th className="pb-2 text-right">Balance (₹)</th>
+                      <th className="pb-2 text-right">Running Balance (₹)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-mono">
-                    <tr className="hover:bg-slate-800/20">
-                      <td className="py-2.5 text-slate-400">01 Apr 2026</td>
-                      <td className="py-2.5 text-brand-400 font-bold">OP-BAL</td>
-                      <td className="py-2.5 font-sans font-semibold text-slate-300">OPENING</td>
-                      <td className="py-2.5 font-sans text-slate-400">Opening Balance Brought Forward</td>
-                      <td className="py-2.5 text-right font-bold text-emerald-400">₹ 50,000.00</td>
-                      <td className="py-2.5 text-right font-bold text-slate-500">₹ 0.00</td>
-                      <td className="py-2.5 text-right font-bold text-slate-100">₹ 50,000.00 Dr</td>
-                    </tr>
-                    <tr className="hover:bg-slate-800/20">
-                      <td className="py-2.5 text-slate-400">15 Apr 2026</td>
-                      <td className="py-2.5 text-brand-400 font-bold">INV-1092</td>
-                      <td className="py-2.5 font-sans font-semibold text-emerald-400">SALES</td>
-                      <td className="py-2.5 font-sans text-slate-400">Sales Invoice INV-1092 (GST 18%)</td>
-                      <td className="py-2.5 text-right font-bold text-emerald-400">₹ 1,80,000.00</td>
-                      <td className="py-2.5 text-right font-bold text-slate-500">₹ 0.00</td>
-                      <td className="py-2.5 text-right font-bold text-slate-100">₹ 2,30,000.00 Dr</td>
-                    </tr>
-                    <tr className="hover:bg-slate-800/20">
-                      <td className="py-2.5 text-slate-400">20 May 2026</td>
-                      <td className="py-2.5 text-brand-400 font-bold">REC-045</td>
-                      <td className="py-2.5 font-sans font-semibold text-brand-400">RECEIPT</td>
-                      <td className="py-2.5 font-sans text-slate-400">Cheque Received HDFC #401928</td>
-                      <td className="py-2.5 text-right font-bold text-slate-500">₹ 0.00</td>
-                      <td className="py-2.5 text-right font-bold text-indigo-400">₹ 45,000.00</td>
-                      <td className="py-2.5 text-right font-bold text-slate-100">₹ 1,85,000.00 Dr</td>
-                    </tr>
+                    {ledgerData?.statement?.length > 0 ? (
+                      ledgerData.statement.map((row: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-800/20">
+                          <td className="py-2.5 text-slate-400">
+                            {new Date(row.date).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td className="py-2.5 text-brand-400 font-bold">{row.voucherNumber}</td>
+                          <td className="py-2.5 font-sans font-semibold text-slate-300">{row.voucherType}</td>
+                          <td className="py-2.5 font-sans text-slate-400">{row.narration || row.partyName}</td>
+                          <td className="py-2.5 text-right font-bold text-emerald-400">
+                            ₹{Number(row.debit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2.5 text-right font-bold text-indigo-400">
+                            ₹{Number(row.credit).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2.5 text-right font-bold text-slate-100">
+                            ₹{Number(row.runningBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="text-center py-6 text-slate-500 font-sans">
+                          No transactions found for this account.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

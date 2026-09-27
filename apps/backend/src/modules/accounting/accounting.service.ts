@@ -443,4 +443,28 @@ export class AccountingService {
       equity,
     };
   }
+
+  async findAllVouchers(companyId: string, type?: VoucherType, status?: VoucherStatus, limit = 50) {
+    return this.prisma.voucher.findMany({
+      where: {
+        companyId,
+        ...(type ? { voucherType: type } : {}),
+        ...(status ? { status } : {}),
+      },
+      include: {
+        journalEntry: {
+          include: {
+            lines: {
+              include: {
+                account: true,
+                party: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+      take: limit,
+    });
+  }
 }
