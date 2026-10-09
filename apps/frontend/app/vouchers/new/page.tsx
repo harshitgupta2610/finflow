@@ -37,6 +37,10 @@ export default function NewVoucherPage() {
     { accountId: '', debit: '0.00', credit: '0.00' },
   ]);
 
+  const totalDebit = lines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
+  const totalCredit = lines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.001 && totalDebit > 0;
+
   useEffect(() => {
     fetchMasterData();
   }, []);
@@ -108,10 +112,6 @@ export default function NewVoucherPage() {
     updated[index][field] = value;
     setLines(updated);
   };
-
-  const totalDebit = lines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
-  const totalCredit = lines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.001 && totalDebit > 0;
 
   const handlePostVoucher = async () => {
     if (!isBalanced) {
