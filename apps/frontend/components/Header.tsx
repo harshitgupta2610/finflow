@@ -20,6 +20,9 @@ import {
   BookOpen,
   Receipt,
   X,
+  Bot,
+  Settings,
+  ShieldCheck,
 } from 'lucide-react';
 
 export function Header() {
@@ -77,17 +80,22 @@ export function Header() {
   };
 
   const quickNavigations = [
-    { title: 'New Sales Invoice (Alt+S)', href: '/sales/new', category: 'Actions', icon: Receipt },
+    { title: 'New Sales Invoice (Alt+N)', href: '/sales/new', category: 'Actions', icon: Receipt },
     { title: 'New Financial Voucher (Alt+V)', href: '/vouchers/new', category: 'Actions', icon: FileText },
-    { title: 'New Purchase Bill', href: '/purchases/new', category: 'Actions', icon: Receipt },
-    { title: 'Day Book Register (Alt+0)', href: '/daybook', category: 'Navigation', icon: BookOpen },
-    { title: 'Vouchers & Reversals Hub', href: '/vouchers', category: 'Navigation', icon: BookOpen },
-    { title: 'Sales Invoices List', href: '/sales', category: 'Navigation', icon: Receipt },
-    { title: 'Customer & Supplier Master', href: '/parties', category: 'Navigation', icon: Users },
-    { title: 'Item SKU & Inventory Catalog', href: '/items', category: 'Navigation', icon: Package },
-    { title: 'Trial Balance & Financial Reports', href: '/reports', category: 'Navigation', icon: FileText },
-    { title: 'GSTR-1 & GSTR-3B Compliance', href: '/gst', category: 'Navigation', icon: Receipt },
-    { title: 'Banking & Reconciliation (BRS)', href: '/banking', category: 'Navigation', icon: Building2 },
+    { title: 'New Purchase Bill (Alt+E)', href: '/purchases/new', category: 'Actions', icon: Receipt },
+    { title: 'Day Book Register (Alt+B)', href: '/daybook', category: 'Navigation', icon: BookOpen },
+    { title: 'Sales & Invoicing Module (Alt+S)', href: '/sales', category: 'Navigation', icon: Receipt },
+    { title: 'Purchases Module (Alt+P)', href: '/purchases', category: 'Navigation', icon: Receipt },
+    { title: 'Inventory & Stock Valuation (Alt+I)', href: '/inventory', category: 'Navigation', icon: Package },
+    { title: 'Double Entry Accounting (Alt+A)', href: '/accounting', category: 'Navigation', icon: BookOpen },
+    { title: 'GST & E-Invoicing Hub (Alt+G)', href: '/gst', category: 'Navigation', icon: Receipt },
+    { title: 'Banking & Reconciliation (Alt+K)', href: '/banking', category: 'Navigation', icon: Building2 },
+    { title: 'Financial Reports (Alt+R)', href: '/reports', category: 'Navigation', icon: FileText },
+    { title: 'Party Master (Alt+M)', href: '/parties', category: 'Navigation', icon: Users },
+    { title: 'Item Master Catalog (Alt+T)', href: '/items', category: 'Navigation', icon: Package },
+    { title: 'AI Financial Advisor (Alt+C)', href: '/ai-assistant', category: 'Navigation', icon: Bot },
+    { title: 'Audit Trail Logs (Alt+L)', href: '/audit-logs', category: 'Navigation', icon: ShieldCheck },
+    { title: 'Settings (Alt+O)', href: '/settings', category: 'Navigation', icon: Settings },
   ];
 
   const filteredNavs = quickNavigations.filter((n) =>

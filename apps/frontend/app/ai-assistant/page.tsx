@@ -18,6 +18,9 @@ import {
   CheckCircle2,
   HelpCircle,
   FileText,
+  Save,
+  HardDrive,
+  Trash2,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -26,48 +29,92 @@ interface ChatMessage {
   timestamp?: string;
 }
 
+const STORAGE_KEY = 'finflow_ai_chat_history';
+
 export default function AIAssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [contextInfo, setContextInfo] = useState<any>(null);
+  const [isPersisted, setIsPersisted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
 
+  // 1. Initial Load: Check localStorage first, or generate initial live greeting
   useEffect(() => {
-    loadContext();
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+            setIsPersisted(true);
+            initialLoadDone.current = true;
+            // Still load context in the background for live metrics
+            loadContext(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse saved chat history', e);
+      }
+    }
+    loadContext(true);
+    initialLoadDone.current = true;
   }, []);
 
+  // 2. Persist to localStorage whenever messages update
+  useEffect(() => {
+    if (initialLoadDone.current && messages.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+        setIsPersisted(true);
+      } catch (e) {
+        console.error('Failed to persist chat history', e);
+      }
+    }
+  }, [messages]);
+
+  // 3. Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const loadContext = async () => {
+  const loadContext = async (setInitialGreeting = false) => {
     try {
       const companyId = await getActiveCompanyId();
       const res = await api.get('/ai/context', { params: { companyId } });
       setContextInfo(res.data);
 
-      const companyName = res.data?.company?.legalName || 'FinFlow Demo Enterprise';
-      const gstin = res.data?.company?.gstin || '27ABCDE1234F1Z5';
-      const suppliersCount = res.data?.metrics?.suppliersCount || 1;
-      const customersCount = res.data?.metrics?.customersCount || 14;
+      if (setInitialGreeting) {
+        const companyName = res.data?.company?.legalName || 'FinFlow Demo Enterprise';
+        const gstin = res.data?.company?.gstin || '27ABCDE1234F1Z5';
+        const suppliersCount = res.data?.metrics?.suppliersCount || 1;
+        const customersCount = res.data?.metrics?.customersCount || 14;
 
-      setMessages([
-        {
+        const welcomeMessage: ChatMessage = {
           role: 'assistant',
-          content: `Hello! I am your **FinFlow AI Financial Advisor & FinTech CFO Agent** powered by OpenAI.\n\nI have live audit-level access to your double-entry books for **${companyName}** (GSTIN: \`${gstin}\`).\n\n### Current Snapshot:\n- **Bank & Cash Liquidity:** ₹${Number(res.data?.metrics?.bankBalance || 1845900).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Operating Bank + ₹${Number(res.data?.metrics?.cashBalance || 215400).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cash\n- **Receivables vs Payables:** ₹${Number(res.data?.metrics?.accountsReceivable || 645200).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${customersCount} Customers) vs ₹${Number(res.data?.metrics?.accountsPayable || 380000).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${suppliersCount} Suppliers)\n- **Registered Suppliers:** Includes active vendor **COGNIZANT** (Credit Limit: ₹10,00,000, 30 days)\n\nHow can I advise you today on GST tax optimization, cashflow forecasting, or supplier negotiations?`,
+          content: `Hello! I am your **FinFlow AI Financial Advisor & FinTech CFO Agent** powered by OpenRouter & Live ERP Context.\n\nI have live audit-level access to your double-entry books for **${companyName}** (GSTIN: \`${gstin}\`).\n\n### Current Snapshot:\n- **Bank & Cash Liquidity:** ₹${Number(res.data?.metrics?.bankBalance || 1845900).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Operating Bank + ₹${Number(res.data?.metrics?.cashBalance || 215400).toLocaleString('en-IN', { minimumFractionDigits: 2 })} Cash\n- **Receivables vs Payables:** ₹${Number(res.data?.metrics?.accountsReceivable || 645200).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${customersCount} Customers) vs ₹${Number(res.data?.metrics?.accountsPayable || 380000).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${suppliersCount} Suppliers)\n- **Registered Suppliers:** Includes active vendor **COGNIZANT** (Credit Limit: ₹10,00,000, 30 days)\n\nHow can I advise you today on GST tax optimization, cashflow forecasting, or supplier negotiations?`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
+        };
+
+        setMessages([welcomeMessage]);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([welcomeMessage]));
+          setIsPersisted(true);
+        } catch (e) {}
+      }
     } catch (err) {
       console.error('Failed to load initial AI context', err);
-      setMessages([
-        {
+      if (setInitialGreeting) {
+        const fallbackMsg: ChatMessage = {
           role: 'assistant',
           content: `Hello! I am your **FinFlow AI Financial Advisor**. How can I assist you with cashflow analysis, GST compliance, or voucher auditing today?`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
+        };
+        setMessages([fallbackMsg]);
+      }
     }
   };
 
@@ -81,13 +128,14 @@ export default function AIAssistantPage() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput('');
     setLoading(true);
 
     try {
       const companyId = await getActiveCompanyId();
-      const historyPayload = messages.map((m) => ({
+      const historyPayload = messages.slice(-10).map((m) => ({
         role: m.role,
         content: m.content,
       }));
@@ -107,14 +155,13 @@ export default function AIAssistantPage() {
         }));
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: replyText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: replyText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (err: any) {
       console.error('AI chat failed', err);
       const errMsg =
@@ -133,8 +180,11 @@ export default function AIAssistantPage() {
   };
 
   const handleClearChat = () => {
-    if (confirm('Clear current AI conversation history?')) {
-      loadContext();
+    if (confirm('Clear entire AI conversation history from local memory?')) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      loadContext(true);
     }
   };
 
@@ -187,11 +237,17 @@ export default function AIAssistantPage() {
                   </h1>
                   <span className="text-[10px] font-mono bg-brand-500/20 text-brand-300 font-bold px-2 py-0.5 rounded border border-brand-500/30 flex items-center space-x-1">
                     <Sparkles className="h-3 w-3" />
-                    <span>OPENAI POWERED</span>
+                    <span>OPENROUTER POWERED</span>
                   </span>
+                  {isPersisted && (
+                    <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30 flex items-center space-x-1">
+                      <HardDrive className="h-3 w-3 text-emerald-400" />
+                      <span>PERSISTED IN MEMORY</span>
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-300 mt-1">
-                  Autonomous FinTech CFO & Chartered Accounting Agent directly integrated with your live double-entry books.
+                  Autonomous FinTech CFO &amp; Chartered Accounting Agent directly integrated with your live double-entry books.
                 </p>
               </div>
             </div>
@@ -205,10 +261,11 @@ export default function AIAssistantPage() {
               </div>
               <button
                 onClick={handleClearChat}
-                className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-                title="Reset Conversation"
+                className="flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-rose-400 transition-colors text-xs font-semibold"
+                title="Clear conversation history from local memory"
               >
-                <RotateCcw className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear History</span>
               </button>
             </div>
           </div>
@@ -222,65 +279,88 @@ export default function AIAssistantPage() {
                   key={idx}
                   onClick={() => handleSend(q.prompt)}
                   disabled={loading}
-                  className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-brand-500/40 text-left transition-all hover:bg-slate-800/40 flex flex-col justify-between space-y-2 group"
+                  className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 hover:bg-slate-900 transition-all text-left flex flex-col justify-between group space-y-2"
                 >
-                  <div className="flex items-center space-x-2">
-                    <Icon className={`h-4 w-4 ${q.color.split(' ')[0]}`} />
-                    <span className="text-xs font-bold text-slate-200 group-hover:text-brand-300 transition-colors">
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-slate-200 group-hover:text-brand-400 transition-colors">
                       {q.title}
                     </span>
+                    <Icon className="h-4 w-4 text-slate-500 group-hover:text-brand-400 transition-colors" />
                   </div>
                   <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                    "{q.prompt}"
+                    {q.prompt}
                   </p>
                 </button>
               );
             })}
           </div>
 
-          {/* Chat Container */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-[560px] shadow-2xl backdrop-blur-md">
-            {/* Messages Body */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-5">
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+          {/* Chat Messages Container */}
+          <div className="bg-slate-900/40 border border-slate-800 rounded-2xl flex flex-col h-[520px] overflow-hidden shadow-sm">
+            {/* Messages Scroll Area */}
+            <div className="flex-1 p-5 overflow-y-auto space-y-5">
+              {messages.map((m, index) => {
+                const isUser = m.role === 'user';
+                return (
                   <div
-                    className={`max-w-3xl rounded-2xl p-4 text-xs space-y-2 ${
-                      msg.role === 'user'
-                        ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-br-none shadow-lg shadow-brand-600/20'
-                        : 'bg-slate-950/90 border border-slate-800/90 text-slate-200 rounded-bl-none shadow-lg'
-                    }`}
+                    key={index}
+                    className={`flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
                   >
-                    <div className="flex items-center justify-between space-x-4 border-b border-white/10 pb-1.5 text-[10px] opacity-75 font-semibold">
-                      <div className="flex items-center space-x-1.5">
-                        {msg.role === 'assistant' ? (
-                          <>
-                            <Bot className="h-3.5 w-3.5 text-brand-400" />
-                            <span className="text-brand-300">FinFlow AI Advisor</span>
-                          </>
-                        ) : (
-                          <span>You</span>
-                        )}
-                      </div>
-                      {msg.timestamp && <span className="font-mono text-[9px]">{msg.timestamp}</span>}
+                    {/* Avatar */}
+                    <div
+                      className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold shadow-md ${
+                        isUser
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/30'
+                      }`}
+                    >
+                      {isUser ? 'YOU' : <Bot className="h-4 w-4" />}
                     </div>
 
-                    <MarkdownRenderer
-                      content={msg.content}
-                      className={msg.role === 'user' ? 'text-white [&_strong]:text-white [&_p]:text-white' : ''}
-                    />
-                  </div>
-                </div>
-              ))}
+                    {/* Bubble */}
+                    <div
+                      className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                        isUser
+                          ? 'bg-brand-600 text-white rounded-tr-none'
+                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
+                      }`}
+                    >
+                      {isUser ? (
+                        <p className="text-xs leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                      ) : (
+                        <MarkdownRenderer content={m.content} />
+                      )}
 
+                      {m.timestamp && (
+                        <span
+                          className={`text-[10px] mt-2 block font-mono ${
+                            isUser ? 'text-brand-200 text-right' : 'text-slate-500'
+                          }`}
+                        >
+                          {m.timestamp}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Typing / Thinking Indicator */}
               {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-2xl p-4 rounded-bl-none flex items-center space-x-3 shadow-lg">
-                    <Sparkles className="h-4 w-4 text-brand-400 animate-spin" />
-                    <span>Consulting OpenAI with live ERP ledger & voucher context...</span>
+                <div className="flex items-start space-x-3">
+                  <div className="h-8 w-8 rounded-xl bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                    <Bot className="h-4 w-4 animate-pulse" />
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 space-y-2">
+                    <div className="flex items-center space-x-2 text-xs text-brand-400 font-semibold">
+                      <Sparkles className="h-3.5 w-3.5 animate-spin" />
+                      <span>Auditing financial books &amp; formulating advice...</span>
+                    </div>
+                    <div className="flex space-x-1.5 pt-1">
+                      <div className="h-2 w-2 rounded-full bg-brand-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="h-2 w-2 rounded-full bg-brand-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="h-2 w-2 rounded-full bg-brand-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
                 </div>
               )}
@@ -289,24 +369,40 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Input Bar */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center space-x-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                disabled={loading}
-                placeholder="Ask about GST liabilities, supplier balances (e.g. COGNIZANT), cashflow forecasts, or voucher audits..."
-                className="flex-1 bg-slate-900/90 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 disabled:opacity-50 transition-colors"
-              />
-              <button
-                onClick={() => handleSend()}
-                disabled={!input.trim() || loading}
-                className="px-5 py-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white rounded-xl shadow-lg shadow-brand-600/30 transition-all font-semibold text-xs flex items-center space-x-2"
+            <div className="p-4 bg-slate-950/80 border-t border-slate-800">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSend();
+                }}
+                className="flex items-center space-x-3"
               >
-                <span>Ask Advisor</span>
-                <Send className="h-3.5 w-3.5" />
-              </button>
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Ask FinFlow AI anything (e.g. 'How much GST do we owe this month?' or 'Analyze vendor debt')..."
+                    disabled={loading}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !input.trim()}
+                  className="px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:hover:bg-brand-600 text-white font-bold text-xs transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2 shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Ask Advisor</span>
+                </button>
+              </form>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 px-1">
+                <span className="flex items-center space-x-1">
+                  <HardDrive className="h-3 w-3 text-emerald-400" />
+                  <span>Chat history is automatically saved to your browser&apos;s local storage.</span>
+                </span>
+                <span>Powered by OpenRouter gpt-4o-mini</span>
+              </div>
             </div>
           </div>
         </main>

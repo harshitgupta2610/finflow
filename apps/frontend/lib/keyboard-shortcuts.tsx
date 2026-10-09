@@ -50,24 +50,24 @@ export function KeyboardShortcutProvider({ children }: { children: React.ReactNo
 
   // Core navigation shortcuts
   const coreShortcuts: Shortcut[] = [
-    { keys: 'Alt+D', description: 'Go to Dashboard', category: 'Navigation', action: () => navigateTo('/', 'Alt+D', 'Dashboard'), icon: LayoutDashboard },
-    { keys: 'Alt+0', description: 'Day Book Register', category: 'Modules', action: () => navigateTo('/daybook', 'Alt+0', 'Day Book'), icon: CalendarDays },
-    { keys: 'Alt+1', description: 'Sales & Invoicing', category: 'Modules', action: () => navigateTo('/sales', 'Alt+1', 'Sales & Invoicing'), icon: ShoppingCart },
-    { keys: 'Alt+2', description: 'Purchases Module', category: 'Modules', action: () => navigateTo('/purchases', 'Alt+2', 'Purchases'), icon: ShoppingBag },
-    { keys: 'Alt+3', description: 'Inventory & Stock', category: 'Modules', action: () => navigateTo('/inventory', 'Alt+3', 'Inventory & Stock'), icon: Package },
-    { keys: 'Alt+4', description: 'Double Entry Accounting', category: 'Modules', action: () => navigateTo('/accounting', 'Alt+4', 'Accounting & Ledgers'), icon: BookOpen },
-    { keys: 'Alt+5', description: 'GST & E-Invoicing', category: 'Modules', action: () => navigateTo('/gst', 'Alt+5', 'GST & E-Invoicing'), icon: Receipt },
-    { keys: 'Alt+6', description: 'Banking & BRS', category: 'Modules', action: () => navigateTo('/banking', 'Alt+6', 'Banking & Reconciliation'), icon: Landmark },
-    { keys: 'Alt+7', description: 'Financial Reports', category: 'Modules', action: () => navigateTo('/reports', 'Alt+7', 'Financial Reports'), icon: BarChart3 },
-    { keys: 'Alt+8', description: 'Party Master', category: 'Modules', action: () => navigateTo('/parties', 'Alt+8', 'Party Master'), icon: Users },
-    { keys: 'Alt+9', description: 'Item Master', category: 'Modules', action: () => navigateTo('/items', 'Alt+9', 'Item Master'), icon: Layers },
-    { keys: 'Alt+S', description: 'New Sales Invoice', category: 'Actions', action: () => navigateTo('/sales/new', 'Alt+S', 'New Sales Invoice'), icon: ShoppingCart },
+    { keys: 'Alt+D', description: 'Dashboard Overview', category: 'Navigation', action: () => navigateTo('/', 'Alt+D', 'Dashboard'), icon: LayoutDashboard },
+    { keys: 'Alt+B', description: 'Day Book Register', category: 'Modules', action: () => navigateTo('/daybook', 'Alt+B', 'Day Book'), icon: CalendarDays },
+    { keys: 'Alt+S', description: 'Sales & Invoicing', category: 'Modules', action: () => navigateTo('/sales', 'Alt+S', 'Sales & Invoicing'), icon: ShoppingCart },
+    { keys: 'Alt+P', description: 'Purchases Module', category: 'Modules', action: () => navigateTo('/purchases', 'Alt+P', 'Purchases'), icon: ShoppingBag },
+    { keys: 'Alt+I', description: 'Inventory & Stock Valuation', category: 'Modules', action: () => navigateTo('/inventory', 'Alt+I', 'Inventory & Stock'), icon: Package },
+    { keys: 'Alt+A', description: 'Double Entry Accounting', category: 'Modules', action: () => navigateTo('/accounting', 'Alt+A', 'Accounting & Ledgers'), icon: BookOpen },
+    { keys: 'Alt+G', description: 'GST & E-Invoicing Portal', category: 'Modules', action: () => navigateTo('/gst', 'Alt+G', 'GST & E-Invoicing'), icon: Receipt },
+    { keys: 'Alt+K', description: 'Banking & Reconciliation', category: 'Modules', action: () => navigateTo('/banking', 'Alt+K', 'Banking & Reconciliation'), icon: Landmark },
+    { keys: 'Alt+R', description: 'Financial Reports & P&L', category: 'Modules', action: () => navigateTo('/reports', 'Alt+R', 'Financial Reports'), icon: BarChart3 },
+    { keys: 'Alt+M', description: 'Party Master (Customers/Suppliers)', category: 'Modules', action: () => navigateTo('/parties', 'Alt+M', 'Party Master'), icon: Users },
+    { keys: 'Alt+T', description: 'Item Master Catalog', category: 'Modules', action: () => navigateTo('/items', 'Alt+T', 'Item Master'), icon: Layers },
+    { keys: 'Alt+C', description: 'AI Financial Advisor & CFO Agent', category: 'Modules', action: () => navigateTo('/ai-assistant', 'Alt+C', 'AI Financial Advisor'), icon: Bot },
+    { keys: 'Alt+L', description: 'Audit Trail Logs', category: 'Modules', action: () => navigateTo('/audit-logs', 'Alt+L', 'Audit Logs'), icon: ShieldCheck },
+    { keys: 'Alt+O', description: 'Settings & Configuration', category: 'Navigation', action: () => navigateTo('/settings', 'Alt+O', 'Settings'), icon: Settings },
+    { keys: 'Alt+N', description: 'New Sales Invoice', category: 'Actions', action: () => navigateTo('/sales/new', 'Alt+N', 'New Sales Invoice'), icon: ShoppingCart },
     { keys: 'Alt+V', description: 'New Financial Voucher', category: 'Actions', action: () => navigateTo('/vouchers/new', 'Alt+V', 'New Voucher'), icon: FileText },
-    { keys: 'Alt+P', description: 'New Purchase Bill', category: 'Actions', action: () => navigateTo('/purchases/new', 'Alt+P', 'New Purchase Bill'), icon: ShoppingBag },
-    { keys: 'Alt+A', description: 'AI Business Advisor', category: 'Modules', action: () => navigateTo('/ai-assistant', 'Alt+A', 'AI Financial Advisor'), icon: Bot },
-    { keys: 'Alt+L', description: 'Audit Logs', category: 'Modules', action: () => navigateTo('/audit-logs', 'Alt+L', 'Audit Logs'), icon: ShieldCheck },
-    { keys: 'Alt+,', description: 'Settings', category: 'Navigation', action: () => navigateTo('/settings', 'Alt+,', 'Settings'), icon: Settings },
-    { keys: 'Ctrl+K', description: 'Command Palette / Search', category: 'System', action: () => {}, icon: Search },
+    { keys: 'Alt+E', description: 'New Purchase Bill', category: 'Actions', action: () => navigateTo('/purchases/new', 'Alt+E', 'New Purchase Bill'), icon: ShoppingBag },
+    { keys: 'Ctrl+K', description: 'Global Search / Command Palette', category: 'System', action: () => {}, icon: Search },
     { keys: '?', description: 'Show Keyboard Shortcuts Palette', category: 'System', action: () => setShowPalette(true), icon: Keyboard },
     { keys: 'Escape', description: 'Close Dialogs / Modals', category: 'System', action: () => setShowPalette(false), icon: X },
   ];
@@ -113,71 +113,56 @@ export function KeyboardShortcutProvider({ children }: { children: React.ReactNo
         return;
       }
 
-      // ─── ALT + KEY / NUMBER HANDLERS ──────────────────────────────
-      // Note: Alt shortcuts work universally, even if focused in an input field!
+      // ─── ALT + ALPHABET KEY HANDLERS ──────────────────────────────
+      // Note: Alt shortcuts work universally across the app, even if focused in an input field!
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
-        // Detect number keys (top row digits and numpad digits)
-        let numKey: string | null = null;
-        if (e.code === 'Digit0' || e.code === 'Numpad0' || e.key === '0') numKey = '0';
-        else if (e.code === 'Digit1' || e.code === 'Numpad1' || e.key === '1') numKey = '1';
-        else if (e.code === 'Digit2' || e.code === 'Numpad2' || e.key === '2') numKey = '2';
-        else if (e.code === 'Digit3' || e.code === 'Numpad3' || e.key === '3') numKey = '3';
-        else if (e.code === 'Digit4' || e.code === 'Numpad4' || e.key === '4') numKey = '4';
-        else if (e.code === 'Digit5' || e.code === 'Numpad5' || e.key === '5') numKey = '5';
-        else if (e.code === 'Digit6' || e.code === 'Numpad6' || e.key === '6') numKey = '6';
-        else if (e.code === 'Digit7' || e.code === 'Numpad7' || e.key === '7') numKey = '7';
-        else if (e.code === 'Digit8' || e.code === 'Numpad8' || e.key === '8') numKey = '8';
-        else if (e.code === 'Digit9' || e.code === 'Numpad9' || e.key === '9') numKey = '9';
-
-        if (numKey !== null) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const numberRoutes: Record<string, { path: string; label: string }> = {
-            '0': { path: '/daybook', label: 'Day Book Register' },
-            '1': { path: '/sales', label: 'Sales & Invoicing' },
-            '2': { path: '/purchases', label: 'Purchases' },
-            '3': { path: '/inventory', label: 'Inventory & Stock' },
-            '4': { path: '/accounting', label: 'Accounting & Ledgers' },
-            '5': { path: '/gst', label: 'GST & E-Invoicing' },
-            '6': { path: '/banking', label: 'Banking & Reconciliation' },
-            '7': { path: '/reports', label: 'Financial Reports' },
-            '8': { path: '/parties', label: 'Party Master' },
-            '9': { path: '/items', label: 'Item Master' },
-          };
-
-          const targetRoute = numberRoutes[numKey];
-          if (targetRoute) {
-            navigateTo(targetRoute.path, `Alt+${numKey}`, targetRoute.label);
-          }
-          return;
-        }
-
-        // Detect letters (D, S, V, P, A, L, Comma)
         let letterKey: string | null = null;
-        if (e.code === 'KeyD' || e.key.toLowerCase() === 'd') letterKey = 'D';
-        else if (e.code === 'KeyS' || e.key.toLowerCase() === 's') letterKey = 'S';
-        else if (e.code === 'KeyV' || e.key.toLowerCase() === 'v') letterKey = 'V';
-        else if (e.code === 'KeyP' || e.key.toLowerCase() === 'p') letterKey = 'P';
-        else if (e.code === 'KeyA' || e.key.toLowerCase() === 'a') letterKey = 'A';
-        else if (e.code === 'KeyL' || e.key.toLowerCase() === 'l') letterKey = 'L';
-        else if (e.code === 'Comma' || e.key === ',') letterKey = ',';
+        const code = e.code;
+        const key = e.key.toLowerCase();
+
+        if (code === 'KeyD' || key === 'd') letterKey = 'D';
+        else if (code === 'KeyB' || key === 'b') letterKey = 'B';
+        else if (code === 'KeyS' || key === 's') letterKey = 'S';
+        else if (code === 'KeyP' || key === 'p') letterKey = 'P';
+        else if (code === 'KeyI' || key === 'i') letterKey = 'I';
+        else if (code === 'KeyA' || key === 'a') letterKey = 'A';
+        else if (code === 'KeyG' || key === 'g') letterKey = 'G';
+        else if (code === 'KeyK' || key === 'k') letterKey = 'K';
+        else if (code === 'KeyR' || key === 'r') letterKey = 'R';
+        else if (code === 'KeyM' || key === 'm') letterKey = 'M';
+        else if (code === 'KeyT' || key === 't') letterKey = 'T';
+        else if (code === 'KeyC' || key === 'c') letterKey = 'C';
+        else if (code === 'KeyL' || key === 'l') letterKey = 'L';
+        else if (code === 'KeyO' || key === 'o') letterKey = 'O';
+        else if (code === 'KeyN' || key === 'n') letterKey = 'N';
+        else if (code === 'KeyV' || key === 'v') letterKey = 'V';
+        else if (code === 'KeyE' || key === 'e') letterKey = 'E';
 
         if (letterKey !== null) {
           e.preventDefault();
           e.stopPropagation();
 
-          const letterRoutes: Record<string, { path: string; label: string }> = {
-            'D': { path: '/', label: 'Dashboard' },
-            'S': { path: '/sales/new', label: 'New Sales Invoice' },
+          const alphabetRoutes: Record<string, { path: string; label: string }> = {
+            'D': { path: '/', label: 'Dashboard Overview' },
+            'B': { path: '/daybook', label: 'Day Book Register' },
+            'S': { path: '/sales', label: 'Sales & Invoicing' },
+            'P': { path: '/purchases', label: 'Purchases Module' },
+            'I': { path: '/inventory', label: 'Inventory & Stock Valuation' },
+            'A': { path: '/accounting', label: 'Double Entry Accounting' },
+            'G': { path: '/gst', label: 'GST & E-Invoicing Portal' },
+            'K': { path: '/banking', label: 'Banking & Reconciliation' },
+            'R': { path: '/reports', label: 'Financial Reports & P&L' },
+            'M': { path: '/parties', label: 'Party Master' },
+            'T': { path: '/items', label: 'Item Master Catalog' },
+            'C': { path: '/ai-assistant', label: 'AI Financial Advisor' },
+            'L': { path: '/audit-logs', label: 'Audit Trail Logs' },
+            'O': { path: '/settings', label: 'Settings & Configuration' },
+            'N': { path: '/sales/new', label: 'New Sales Invoice' },
             'V': { path: '/vouchers/new', label: 'New Voucher' },
-            'P': { path: '/purchases/new', label: 'New Purchase Bill' },
-            'A': { path: '/ai-assistant', label: 'AI Financial Advisor' },
-            'L': { path: '/audit-logs', label: 'Audit Logs' },
-            ',': { path: '/settings', label: 'Settings' },
+            'E': { path: '/purchases/new', label: 'New Purchase Bill' },
           };
 
-          const targetRoute = letterRoutes[letterKey];
+          const targetRoute = alphabetRoutes[letterKey];
           if (targetRoute) {
             navigateTo(targetRoute.path, `Alt+${letterKey}`, targetRoute.label);
           }
@@ -278,7 +263,7 @@ function ShortcutPalette({ shortcuts, onClose }: { shortcuts: Shortcut[]; onClos
               autoFocus
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search shortcuts (e.g. Daybook, Alt+0, Sales)..."
+              placeholder="Search shortcuts (e.g. Daybook, Alt+B, Sales)..."
               className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>

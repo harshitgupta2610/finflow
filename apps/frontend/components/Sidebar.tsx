@@ -23,19 +23,19 @@ import {
 
 const navigationItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, shortcut: 'Alt+D' },
-  { name: 'Day Book', href: '/daybook', icon: CalendarDays, shortcut: 'Alt+0' },
-  { name: 'Sales & Invoicing', href: '/sales', icon: ShoppingCart, shortcut: 'Alt+1' },
-  { name: 'Purchases', href: '/purchases', icon: ShoppingBag, shortcut: 'Alt+2' },
-  { name: 'Inventory & Stock', href: '/inventory', icon: Package, shortcut: 'Alt+3' },
-  { name: 'Double Entry Accounting', href: '/accounting', icon: BookOpen, shortcut: 'Alt+4' },
-  { name: 'GST & E-Invoicing', href: '/gst', icon: Receipt, shortcut: 'Alt+5' },
-  { name: 'Banking & Reconciliation', href: '/banking', icon: Landmark, shortcut: 'Alt+6' },
-  { name: 'Financial Reports', href: '/reports', icon: BarChart3, shortcut: 'Alt+7' },
-  { name: 'Party Master', href: '/parties', icon: Users, shortcut: 'Alt+8' },
-  { name: 'Item Master', href: '/items', icon: Layers, shortcut: 'Alt+9' },
+  { name: 'Day Book', href: '/daybook', icon: CalendarDays, shortcut: 'Alt+B' },
+  { name: 'Sales & Invoicing', href: '/sales', icon: ShoppingCart, shortcut: 'Alt+S' },
+  { name: 'Purchases', href: '/purchases', icon: ShoppingBag, shortcut: 'Alt+P' },
+  { name: 'Inventory & Stock', href: '/inventory', icon: Package, shortcut: 'Alt+I' },
+  { name: 'Double Entry Accounting', href: '/accounting', icon: BookOpen, shortcut: 'Alt+A' },
+  { name: 'GST & E-Invoicing', href: '/gst', icon: Receipt, shortcut: 'Alt+G' },
+  { name: 'Banking & Reconciliation', href: '/banking', icon: Landmark, shortcut: 'Alt+K' },
+  { name: 'Financial Reports', href: '/reports', icon: BarChart3, shortcut: 'Alt+R' },
+  { name: 'Party Master', href: '/parties', icon: Users, shortcut: 'Alt+M' },
+  { name: 'Item Master', href: '/items', icon: Layers, shortcut: 'Alt+T' },
   { name: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck, shortcut: 'Alt+L' },
-  { name: 'AI Business Advisor', href: '/ai-assistant', icon: Bot, badge: 'PRO', shortcut: 'Alt+A' },
-  { name: 'Settings', href: '/settings', icon: Settings, shortcut: 'Alt+,' },
+  { name: 'AI Business Advisor', href: '/ai-assistant', icon: Bot, badge: 'PRO', shortcut: 'Alt+C' },
+  { name: 'Settings', href: '/settings', icon: Settings, shortcut: 'Alt+O' },
 ];
 
 export function Sidebar() {

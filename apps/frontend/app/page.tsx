@@ -77,17 +77,17 @@ export default function DashboardPage() {
               <Link
                 href="/daybook"
                 className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700"
-                title="View full day-to-day transaction register (Alt+0)"
+                title="View full day-to-day transaction register (Alt+B)"
               >
                 <CalendarDays className="h-4 w-4 text-brand-400" />
-                <span>Day Book (Alt+0)</span>
+                <span>Day Book (Alt+B)</span>
               </Link>
               <Link
                 href="/sales/new"
                 className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
-                <span>New Sales Invoice (Alt+S)</span>
+                <span>New Sales Invoice (Alt+N)</span>
               </Link>
               <Link
                 href="/vouchers/new"

@@ -210,10 +210,10 @@ export default function SalesPage() {
               <Link
                 href="/sales/new"
                 className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-brand-600/30 text-xs transition-all"
-                title="Keyboard Shortcut: Alt+S"
+                title="Keyboard Shortcut: Alt+N"
               >
                 <Plus className="h-4 w-4" />
-                <span>New Sales Invoice (Alt+S)</span>
+                <span>New Sales Invoice (Alt+N)</span>
               </Link>
             </div>
           </div>
