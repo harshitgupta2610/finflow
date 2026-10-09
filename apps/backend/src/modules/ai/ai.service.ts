@@ -13,12 +13,36 @@ export class AiService {
     private configService: ConfigService,
   ) {}
 
-  private getApiKey(): string {
-    return (
+  private getApiConfig(): { key: string; isOpenRouter: boolean; model: string } {
+    const openrouterKey =
+      this.configService.get<string>('OPENROUTER_API_KEY') ||
+      process.env.OPENROUTER_API_KEY;
+
+    const openaiKey =
       this.configService.get<string>('OPENAI_API_KEY') ||
-      process.env.OPENAI_API_KEY ||
-      ''
-    );
+      process.env.OPENAI_API_KEY;
+
+    if (openrouterKey && openrouterKey.trim().length > 0) {
+      const model =
+        this.configService.get<string>('OPENROUTER_MODEL') ||
+        process.env.OPENROUTER_MODEL ||
+        'openai/gpt-4o-mini';
+      return { key: openrouterKey.trim(), isOpenRouter: true, model };
+    }
+
+    if (openaiKey && openaiKey.trim().startsWith('sk-or-')) {
+      const model =
+        this.configService.get<string>('OPENROUTER_MODEL') ||
+        process.env.OPENROUTER_MODEL ||
+        'openai/gpt-4o-mini';
+      return { key: openaiKey.trim(), isOpenRouter: true, model };
+    }
+
+    if (openaiKey && openaiKey.trim().length > 0) {
+      return { key: openaiKey.trim(), isOpenRouter: false, model: 'gpt-4o-mini' };
+    }
+
+    return { key: '', isOpenRouter: false, model: 'gpt-4o-mini' };
   }
 
   async generateFinancialContext(companyId: string) {
@@ -178,9 +202,11 @@ export class AiService {
   }
 
   async chat(dto: ChatQueryDto, userId?: string) {
-    const apiKey = this.getApiKey();
+    const { key: apiKey, isOpenRouter, model } = this.getApiConfig();
     if (!apiKey) {
-      throw new InternalServerErrorException('OpenAI API Key is not configured on the server');
+      throw new InternalServerErrorException(
+        'AI API Key is not configured on the server. Please set OPENROUTER_API_KEY or OPENAI_API_KEY.',
+      );
     }
 
     const companyId = dto.companyId || 'c0000000-0000-0000-0000-000000000001';
@@ -236,15 +262,26 @@ INSTRUCTIONS FOR ANSWERING:
 
     formattedMessages.push({ role: 'user', content: dto.message });
 
+    const endpoint = isOpenRouter
+      ? 'https://openrouter.ai/api/v1/chat/completions'
+      : 'https://api.openai.com/v1/chat/completions';
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    };
+
+    if (isOpenRouter) {
+      headers['HTTP-Referer'] = 'http://localhost:3000';
+      headers['X-Title'] = 'FinFlow Accounting & ERP';
+    }
+
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers,
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model,
           messages: formattedMessages,
           temperature: 0.3,
           max_tokens: 1500,
@@ -253,8 +290,9 @@ INSTRUCTIONS FOR ANSWERING:
 
       if (!response.ok) {
         const errText = await response.text();
-        this.logger.error(`OpenAI API error [${response.status}]: ${errText}`);
-        throw new InternalServerErrorException(`OpenAI error: ${errText}`);
+        const providerName = isOpenRouter ? 'OpenRouter' : 'OpenAI';
+        this.logger.error(`${providerName} API error [${response.status}]: ${errText}`);
+        throw new InternalServerErrorException(`${providerName} error: ${errText}`);
       }
 
       const json = await response.json();
