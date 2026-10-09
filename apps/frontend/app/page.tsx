@@ -12,7 +12,7 @@ import { ReceivablesChart } from '../components/ReceivablesChart';
 import { RecentTransactionsWidget } from '../components/RecentTransactionsWidget';
 import { OverdueInvoicesWidget } from '../components/OverdueInvoicesWidget';
 import { LowStockWidget } from '../components/LowStockWidget';
-import { Plus } from 'lucide-react';
+import { Plus, CalendarDays } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -74,6 +74,14 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center space-x-3">
+              <Link
+                href="/daybook"
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center space-x-2 border border-slate-700"
+                title="View full day-to-day transaction register (Alt+0)"
+              >
+                <CalendarDays className="h-4 w-4 text-brand-400" />
+                <span>Day Book (Alt+0)</span>
+              </Link>
               <Link
                 href="/sales/new"
                 className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-lg shadow-brand-600/30 flex items-center space-x-2"

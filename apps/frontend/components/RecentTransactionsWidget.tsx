@@ -88,9 +88,11 @@ export function RecentTransactionsWidget() {
           <h3 className="text-sm font-bold text-slate-100">Recent Financial Vouchers</h3>
           <p className="text-xs text-slate-400">Transactionally balanced double-entry vouchers</p>
         </div>
-        <Link href="/vouchers" className="text-xs text-brand-400 hover:text-brand-300 font-semibold">
-          View All Vouchers →
-        </Link>
+        <div className="flex items-center space-x-3 text-xs">
+          <Link href="/daybook" className="text-brand-400 hover:text-brand-300 font-semibold">
+            Open Day Book →
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-3">
