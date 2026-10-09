@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { api, getActiveCompanyId } from '../../lib/api';
 import { Header } from '../../components/Header';
@@ -20,7 +20,13 @@ import {
   Save,
   Trash2,
   RefreshCw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
+
+type PartySortField = 'name' | 'type' | 'state' | 'creditLimit' | 'creditDays';
+type SortOrder = 'asc' | 'desc';
 
 export default function PartyMasterPage() {
   const [parties, setParties] = useState<any[]>([]);
@@ -30,6 +36,8 @@ export default function PartyMasterPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<PartySortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -120,18 +128,53 @@ export default function PartyMasterPage() {
     }
   };
 
-  const filteredParties = parties.filter((p) => {
-    const pType = (p.partyType || p.type || 'CUSTOMER').toUpperCase();
-    const matchesType =
-      filterType === 'ALL' ||
-      pType === filterType ||
-      pType === 'BOTH';
-    const matchesSearch =
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.gstin && p.gstin.toLowerCase().includes(search.toLowerCase())) ||
-      (p.phone && p.phone.includes(search));
-    return matchesType && matchesSearch;
-  });
+  const handleSort = (field: PartySortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: PartySortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 text-slate-600 ml-1 inline" />;
+    return sortOrder === 'asc'
+      ? <ArrowUp className="h-3 w-3 text-brand-400 ml-1 inline" />
+      : <ArrowDown className="h-3 w-3 text-brand-400 ml-1 inline" />;
+  };
+
+  const filteredParties = useMemo(() => {
+    let result = parties.filter((p) => {
+      const pType = (p.partyType || p.type || 'CUSTOMER').toUpperCase();
+      const matchesType =
+        filterType === 'ALL' ||
+        pType === filterType ||
+        pType === 'BOTH';
+      const matchesSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.gstin && p.gstin.toLowerCase().includes(search.toLowerCase())) ||
+        (p.phone && p.phone.includes(search)) ||
+        (p.email && p.email.toLowerCase().includes(search.toLowerCase())) ||
+        (p.state && p.state.toLowerCase().includes(search.toLowerCase()));
+      return matchesType && matchesSearch;
+    });
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'name': cmp = (a.name || '').localeCompare(b.name || ''); break;
+        case 'type': cmp = (a.partyType || a.type || '').localeCompare(b.partyType || b.type || ''); break;
+        case 'state': cmp = (a.state || '').localeCompare(b.state || ''); break;
+        case 'creditLimit': cmp = Number(a.creditLimit || 0) - Number(b.creditLimit || 0); break;
+        case 'creditDays': cmp = Number(a.creditDays || 0) - Number(b.creditDays || 0); break;
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [parties, filterType, search, sortField, sortOrder]);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">

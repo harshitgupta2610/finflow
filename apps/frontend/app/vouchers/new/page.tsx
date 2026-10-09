@@ -41,6 +41,22 @@ export default function NewVoucherPage() {
     fetchMasterData();
   }, []);
 
+  // Keyboard shortcut listener (Ctrl+Enter to post voucher, Alt+R to add row)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handlePostVoucher();
+      }
+      if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        addLine();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lines, isBalanced, voucherType, voucherNumber, date, narration, financialYearId]);
+
   const fetchMasterData = async () => {
     try {
       setInitialLoading(true);

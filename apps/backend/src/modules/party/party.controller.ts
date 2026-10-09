@@ -19,11 +19,13 @@ export class PartyController {
   @Permissions('party.read')
   @ApiOperation({ summary: 'Get all customers/suppliers for company' })
   async findAllByCompany(
-    @Query('companyId') companyId: string,
+    @Query('companyId') companyId?: string,
+    @CurrentUser('company') userCompany?: any,
     @Query('type') type?: PartyType,
     @Query('search') search?: string,
   ) {
-    return this.partyService.findAllByCompany(companyId, type, search);
+    const activeCompId = companyId || userCompany?.id || 'c0000000-0000-0000-0000-000000000001';
+    return this.partyService.findAllByCompany(activeCompId, type, search);
   }
 
   @Get(':id')
@@ -41,8 +43,12 @@ export class PartyController {
   @ApiOperation({ summary: 'Create new customer or supplier' })
   async create(
     @CurrentUser('id') userId: string,
+    @CurrentUser('company') userCompany: any,
     @Body() dto: CreatePartyDto,
   ) {
+    if (!dto.companyId && userCompany?.id) {
+      dto.companyId = userCompany.id;
+    }
     return this.partyService.create(userId, dto);
   }
 

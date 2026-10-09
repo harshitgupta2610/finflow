@@ -94,4 +94,15 @@ export class AccountingController {
   ) {
     return this.accountingService.getBalanceSheet(companyId, asOfDate);
   }
+
+  @Get('reports/daybook')
+  @ApiOperation({ summary: 'Get Daybook — all journal entry transactions for a date range' })
+  async getDaybook(
+    @Query('companyId') companyId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('voucherType') voucherType?: VoucherType,
+  ) {
+    return this.accountingService.getDaybook(companyId, startDate, endDate, voucherType);
+  }
 }

@@ -37,20 +37,6 @@ export default function DashboardPage() {
     }
   }, [loading, user, router]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault();
-        router.push('/sales/new');
-      }
-      if (e.altKey && (e.key === 'v' || e.key === 'V')) {
-        e.preventDefault();
-        router.push('/vouchers/new');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router]);
 
   if (checkingAuth || loading) {
     return (

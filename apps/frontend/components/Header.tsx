@@ -80,6 +80,7 @@ export function Header() {
     { title: 'New Sales Invoice (Alt+S)', href: '/sales/new', category: 'Actions', icon: Receipt },
     { title: 'New Financial Voucher (Alt+V)', href: '/vouchers/new', category: 'Actions', icon: FileText },
     { title: 'New Purchase Bill', href: '/purchases/new', category: 'Actions', icon: Receipt },
+    { title: 'Day Book Register (Alt+0)', href: '/daybook', category: 'Navigation', icon: BookOpen },
     { title: 'Vouchers & Reversals Hub', href: '/vouchers', category: 'Navigation', icon: BookOpen },
     { title: 'Sales Invoices List', href: '/sales', category: 'Navigation', icon: Receipt },
     { title: 'Customer & Supplier Master', href: '/parties', category: 'Navigation', icon: Users },

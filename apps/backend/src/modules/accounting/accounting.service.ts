@@ -814,4 +814,89 @@ export class AccountingService {
       totalVouchersCount: allVouchers.length,
     };
   }
+
+  /**
+   * Daybook: Returns all vouchers with journal entry lines for a given date range,
+   * sorted by date. This is the "Day Book" register in traditional accounting.
+   */
+  async getDaybook(companyId: string, startDate?: string, endDate?: string, voucherType?: VoucherType) {
+    const where: any = { companyId };
+
+    // Date range filter
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date.gte = new Date(startDate);
+      if (endDate) where.date.lte = new Date(endDate);
+    }
+
+    // Voucher type filter
+    if (voucherType) {
+      where.voucherType = voucherType;
+    }
+
+    const vouchers = await this.prisma.voucher.findMany({
+      where,
+      orderBy: { date: 'desc' },
+      include: {
+        journalEntry: {
+          include: {
+            lines: {
+              include: {
+                account: {
+                  select: { id: true, name: true, code: true },
+                },
+                party: {
+                  select: { id: true, name: true, partyType: true },
+                },
+              },
+            },
+          },
+        },
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+
+    // Compute totals
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    const entries = vouchers.map((v) => {
+      const lines = v.journalEntry?.lines || [];
+      const vDebit = lines.reduce((sum, l) => sum + Number(l.debit || 0), 0);
+      const vCredit = lines.reduce((sum, l) => sum + Number(l.credit || 0), 0);
+      totalDebit += vDebit;
+      totalCredit += vCredit;
+
+      return {
+        id: v.id,
+        voucherNumber: v.voucherNumber,
+        voucherType: v.voucherType,
+        date: v.date,
+        narration: v.narration,
+        status: v.status,
+        createdBy: v.createdBy,
+        totalDebit: vDebit,
+        totalCredit: vCredit,
+        lines: lines.map((l) => ({
+          id: l.id,
+          account: l.account,
+          party: l.party,
+          debit: Number(l.debit || 0),
+          credit: Number(l.credit || 0),
+        })),
+      };
+    });
+
+    return {
+      entries,
+      summary: {
+        totalEntries: entries.length,
+        totalDebit,
+        totalCredit,
+        dateRange: { startDate: startDate || null, endDate: endDate || null },
+      },
+    };
+  }
 }
