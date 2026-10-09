@@ -23,10 +23,13 @@ import {
   Bot,
   Settings,
   ShieldCheck,
+  Keyboard,
 } from 'lucide-react';
+import { useKeyboardShortcuts } from '../lib/keyboard-shortcuts';
 
 export function Header() {
   const router = useRouter();
+  const { setShowPalette } = useKeyboardShortcuts();
   const { user, logout, selectedCompanyId, selectedFinancialYear, setSelectedFinancialYear } =
     useAuth();
 
@@ -173,6 +176,18 @@ export function Header() {
               </option>
             </select>
           </div>
+
+          {/* Keyboard Shortcuts Palette Button */}
+          <button
+            onClick={() => setShowPalette(true)}
+            title="Shortcuts Directory (? or F1)"
+            className="flex items-center space-x-1.5 p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700"
+          >
+            <Keyboard className="h-4 w-4 text-brand-400" />
+            <span className="hidden md:inline-block text-[10px] font-mono font-bold bg-slate-950 border border-slate-800 px-1.5 py-0.5 rounded text-slate-400">
+              ?
+            </span>
+          </button>
 
           {/* Notification Bell */}
           <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors">

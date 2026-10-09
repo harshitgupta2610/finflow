@@ -67,7 +67,17 @@ export function KeyboardShortcutProvider({ children }: { children: React.ReactNo
     { keys: 'Alt+N', description: 'New Sales Invoice', category: 'Actions', action: () => navigateTo('/sales/new', 'Alt+N', 'New Sales Invoice'), icon: ShoppingCart },
     { keys: 'Alt+V', description: 'New Financial Voucher', category: 'Actions', action: () => navigateTo('/vouchers/new', 'Alt+V', 'New Voucher'), icon: FileText },
     { keys: 'Alt+E', description: 'New Purchase Bill', category: 'Actions', action: () => navigateTo('/purchases/new', 'Alt+E', 'New Purchase Bill'), icon: ShoppingBag },
-    { keys: 'Ctrl+K', description: 'Global Search / Command Palette', category: 'System', action: () => {}, icon: Search },
+    {
+      keys: 'Ctrl+K',
+      description: 'Global Search / Command Palette',
+      category: 'System',
+      action: () => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+        }
+      },
+      icon: Search,
+    },
     { keys: '?', description: 'Show Keyboard Shortcuts Palette', category: 'System', action: () => setShowPalette(true), icon: Keyboard },
     { keys: 'Escape', description: 'Close Dialogs / Modals', category: 'System', action: () => setShowPalette(false), icon: X },
   ];
@@ -106,8 +116,11 @@ export function KeyboardShortcutProvider({ children }: { children: React.ReactNo
         return;
       }
 
-      // '?' key for palette — only when not typing inside an input
-      if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey && !isInInput) {
+      // '?' key or F1 for palette — works reliably across keyboard layouts
+      const isQuestionShortcut =
+        e.key === '?' || (e.shiftKey && (e.code === 'Slash' || e.key === '/')) || e.key === 'F1';
+
+      if (isQuestionShortcut && !e.ctrlKey && !e.altKey && !e.metaKey && !isInInput) {
         e.preventDefault();
         setShowPalette(prev => !prev);
         return;
@@ -221,91 +234,240 @@ export function useKeyboardShortcuts() {
   return context;
 }
 
+// ─── Keycap Renderer Helper ──────────────────────────────────
+function renderKeycaps(keys: string) {
+  if (keys.includes('+')) {
+    const parts = keys.split('+');
+    return (
+      <div className="flex items-center space-x-1 shrink-0">
+        {parts.map((p, idx) => (
+          <React.Fragment key={idx}>
+            <kbd className="px-1.5 py-0.5 min-w-[20px] text-center rounded bg-slate-800/90 border border-slate-700/80 text-[10px] font-mono font-bold text-slate-200 shadow-sm shadow-black/40 group-hover:bg-brand-500/20 group-hover:border-brand-500/40 group-hover:text-brand-300 transition-colors">
+              {p.trim()}
+            </kbd>
+            {idx < parts.length - 1 && (
+              <span className="text-[10px] font-bold text-slate-500 group-hover:text-brand-400 select-none">
+                +
+              </span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <kbd className="px-2 py-0.5 rounded bg-slate-800/90 border border-slate-700/80 text-[10px] font-mono font-bold text-slate-200 shadow-sm shadow-black/40 group-hover:bg-brand-500/20 group-hover:border-brand-500/40 group-hover:text-brand-300 transition-colors">
+      {keys}
+    </kbd>
+  );
+}
+
 // ─── Shortcut Palette Modal ───────────────────────────────────
 function ShortcutPalette({ shortcuts, onClose }: { shortcuts: Shortcut[]; onClose: () => void }) {
   const [filter, setFilter] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Modules' | 'Actions' | 'Navigation' | 'System'>('ALL');
 
-  const categories = ['Modules', 'Actions', 'Navigation', 'System'] as const;
+  // Lock body scroll when modal is active
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
 
-  const filtered = shortcuts.filter(s =>
-    s.description.toLowerCase().includes(filter.toLowerCase()) ||
-    s.keys.toLowerCase().includes(filter.toLowerCase())
-  );
+  const categories = ['ALL', 'Modules', 'Actions', 'Navigation', 'System'] as const;
+
+  const filtered = shortcuts.filter(s => {
+    const matchesCategory = selectedCategory === 'ALL' || s.category === selectedCategory;
+    const q = filter.trim().toLowerCase();
+    if (!q) return matchesCategory;
+    const matchesQuery =
+      s.description.toLowerCase().includes(q) ||
+      s.keys.toLowerCase().includes(q) ||
+      s.category.toLowerCase().includes(q);
+    return matchesCategory && matchesQuery;
+  });
+
+  const getCategoryCount = (cat: typeof categories[number]) => {
+    if (cat === 'ALL') return shortcuts.length;
+    return shortcuts.filter(s => s.category === cat).length;
+  };
+
+  const getCategoryTheme = (cat: string) => {
+    switch (cat) {
+      case 'Modules':
+        return { badge: 'bg-brand-500/10 text-brand-300 border-brand-500/20', iconBg: 'bg-brand-500/15 text-brand-400' };
+      case 'Actions':
+        return { badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20', iconBg: 'bg-emerald-500/15 text-emerald-400' };
+      case 'Navigation':
+        return { badge: 'bg-amber-500/10 text-amber-300 border-amber-500/20', iconBg: 'bg-amber-500/15 text-amber-400' };
+      default:
+        return { badge: 'bg-slate-700/40 text-slate-300 border-slate-700/60', iconBg: 'bg-slate-800 text-slate-400' };
+    }
+  };
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl shadow-brand-500/10">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl shadow-brand-500/10 ring-1 ring-slate-700/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-brand-950/30">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/30">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900/90 to-brand-950/30 shrink-0">
+          <div className="flex items-center space-x-3.5">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/25 ring-1 ring-brand-400/30">
               <Keyboard className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-slate-100">Keyboard Shortcuts Palette</h2>
-              <p className="text-[11px] text-slate-400">Press shortcut keys directly or click any item to navigate</p>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-100 tracking-tight">
+                  Keyboard Shortcuts Directory
+                </h2>
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">
+                  Instant Keys
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Press any combination directly or click to navigate instantly
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors">
+          <button
+            onClick={onClose}
+            aria-label="Close shortcuts palette"
+            className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors border border-transparent hover:border-slate-700"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Search */}
-        <div className="p-4 border-b border-slate-800">
+        {/* Search & Category Filter Bar */}
+        <div className="p-4 border-b border-slate-800 bg-slate-950/60 space-y-3 shrink-0">
+          {/* Search Box */}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <input
               type="text"
               autoFocus
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search shortcuts (e.g. Daybook, Alt+B, Sales)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+              placeholder="Search shortcuts by name, key, or function (e.g. Day Book, Alt+B, Sales)..."
+              className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-9 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all shadow-inner"
             />
+            {filter && (
+              <button
+                onClick={() => setFilter('')}
+                className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-200 transition-colors"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Category Tabs */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+            {categories.map((cat) => {
+              const count = getCategoryCount(cat);
+              const isActive = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-lg font-medium text-[11px] transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+                    isActive
+                      ? 'bg-brand-600 text-white font-bold shadow-md shadow-brand-600/30'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80'
+                  }`}
+                >
+                  <span>{cat === 'ALL' ? 'All Shortcuts' : cat}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Body */}
-        <div className="max-h-[60vh] overflow-y-auto p-4 space-y-5">
-          {categories.map(cat => {
-            const items = filtered.filter(s => s.category === cat);
-            if (items.length === 0) return null;
-            return (
-              <div key={cat}>
-                <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-1">{cat}</h3>
-                <div className="space-y-1">
-                  {items.map(shortcut => {
-                    const Icon = shortcut.icon;
-                    return (
-                      <button
-                        key={shortcut.keys}
-                        onClick={() => { shortcut.action(); onClose(); }}
-                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-800/70 transition-all group text-left"
-                      >
-                        <div className="flex items-center space-x-3">
-                          {Icon && <Icon className="h-4 w-4 text-slate-500 group-hover:text-brand-400 transition-colors" />}
-                          <span className="text-xs text-slate-200 group-hover:text-white font-medium">{shortcut.description}</span>
-                        </div>
-                        <kbd className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 group-hover:bg-brand-600/20 group-hover:text-brand-300 group-hover:border-brand-500/30 transition-all">
-                          {shortcut.keys}
-                        </kbd>
-                      </button>
-                    );
-                  })}
-                </div>
+        {/* Shortcuts Body (Responsive 2-Column Grid) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {filtered.length === 0 ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center">
+              <div className="h-12 w-12 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mb-3">
+                <Search className="h-6 w-6 text-slate-400" />
               </div>
-            );
-          })}
+              <p className="text-sm font-bold text-slate-200">No shortcuts found for &quot;{filter}&quot;</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                Try searching by module name like &quot;Sales&quot;, &quot;Day Book&quot;, or key combination like &quot;Alt+B&quot;
+              </p>
+              <button
+                onClick={() => {
+                  setFilter('');
+                  setSelectedCategory('ALL');
+                }}
+                className="mt-4 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors"
+              >
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {filtered.map((shortcut) => {
+                const Icon = shortcut.icon;
+                const theme = getCategoryTheme(shortcut.category);
+                return (
+                  <button
+                    key={shortcut.keys}
+                    onClick={() => {
+                      shortcut.action();
+                      onClose();
+                    }}
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 hover:bg-slate-800/70 border border-slate-800/80 hover:border-brand-500/40 transition-all group text-left shadow-sm"
+                  >
+                    <div className="flex items-center space-x-3 min-w-0 mr-2">
+                      <div className={`h-8 w-8 rounded-lg ${theme.iconBg} flex items-center justify-center shrink-0 transition-transform group-hover:scale-105`}>
+                        {Icon ? <Icon className="h-4 w-4" /> : <Keyboard className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-xs font-bold text-slate-200 group-hover:text-white truncate">
+                            {shortcut.description}
+                          </span>
+                        </div>
+                        <span className={`inline-block mt-0.5 text-[9px] font-mono px-1.5 py-0.2 rounded border ${theme.badge}`}>
+                          {shortcut.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    {renderKeycaps(shortcut.keys)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-500">
-          <span>Press <kbd className="px-1 bg-slate-800 rounded text-slate-300">?</kbd> to toggle • <kbd className="px-1 bg-slate-800 rounded text-slate-300">Esc</kbd> to close</span>
-          <span className="font-mono text-brand-400">FinFlow Instant Keys Active</span>
+        <div className="p-3.5 border-t border-slate-800 bg-slate-950/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 shrink-0">
+          <div className="flex items-center space-x-2">
+            <span>Press <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">?</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">F1</kbd> to toggle</span>
+            <span className="text-slate-600">•</span>
+            <span><kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Esc</kbd> to close</span>
+          </div>
+          <div className="flex items-center space-x-2 font-mono text-[10px] text-emerald-400">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>FinFlow Instant Key Engine Active</span>
+          </div>
         </div>
       </div>
     </div>

@@ -19,7 +19,9 @@ import {
   Bot,
   Layers,
   CalendarDays,
+  Keyboard,
 } from 'lucide-react';
+import { useKeyboardShortcuts } from '../lib/keyboard-shortcuts';
 
 const navigationItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, shortcut: 'Alt+D' },
@@ -40,6 +42,7 @@ const navigationItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { setShowPalette } = useKeyboardShortcuts();
 
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
@@ -98,18 +101,27 @@ export function Sidebar() {
       </nav>
 
       {/* System Status Footer */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/50 text-[11px] space-y-2">
-        <div className="flex items-center justify-between text-slate-400">
+      <div className="p-3 border-t border-slate-800 bg-slate-950/50 text-[11px] space-y-2">
+        <button
+          onClick={() => setShowPalette(true)}
+          title="Open Keyboard Shortcuts Directory (? or F1)"
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800/90 text-[11px] text-slate-300 hover:text-white transition-all group shadow-sm"
+        >
+          <span className="flex items-center space-x-2">
+            <Keyboard className="h-3.5 w-3.5 text-brand-400 group-hover:scale-110 transition-transform" />
+            <span className="font-semibold text-xs">Shortcuts Palette</span>
+          </span>
+          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono font-bold text-slate-300 group-hover:border-brand-500/50 group-hover:text-brand-300">
+            ?
+          </kbd>
+        </button>
+
+        <div className="flex items-center justify-between text-slate-400 px-1 pt-0.5">
           <span className="flex items-center space-x-1.5">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Prisma Engine</span>
+            <span className="text-[10px]">Prisma Engine</span>
           </span>
           <span className="font-mono text-[10px] text-slate-500">v1.0.0</span>
-        </div>
-        <div className="flex items-center justify-center">
-          <span className="text-[10px] text-slate-500">
-            Press <kbd className="px-1 bg-slate-800 rounded text-slate-300 font-mono">?</kbd> for shortcuts
-          </span>
         </div>
       </div>
     </aside>
